@@ -31,13 +31,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-
-    if (!isValidPassword) {
+    // Check if user has a password (defensive check)
+    if (!user.password) {
+      console.error(`User ${username} found but has no password field`, {
+        userId: user._id,
+        userFields: Object.keys(user),
+      });
       return NextResponse.json(
-        { error: 'Tên tài khoản hoặc mật khẩu không đúng' },
+        { error: 'Tài khoản chưa được thiết lập mật khẩu. Vui lòng liên hệ quản trị viên.' },
         { status: 401 }
+      );
+    }
+
+    // Verify password
+    try {
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      
+      if (!isValidPassword) {
+        console.log(`Password mismatch for user: ${username}`);
+        return NextResponse.json(
+          { error: 'Tên tài khoản hoặc mật khẩu không đúng' },
+          { status: 401 }
+        );
+      }
+    } catch (compareError) {
+      console.error('Error comparing password:', compareError);
+      return NextResponse.json(
+        { error: 'Có lỗi xảy ra khi xác thực mật khẩu' },
+        { status: 500 }
       );
     }
 

@@ -31,9 +31,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await response.json();
         setUser(data.user);
       } else {
+        // 401 is expected when user is not logged in, don't log as error
+        if (response.status !== 401) {
+          console.error("Error checking auth:", response.status, response.statusText);
+        }
         setUser(null);
       }
     } catch (error) {
+      // Only log network errors or unexpected errors
       console.error("Error checking auth:", error);
       setUser(null);
     } finally {

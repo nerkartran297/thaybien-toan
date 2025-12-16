@@ -95,7 +95,19 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
+    // Ensure password is set (override any password from data spread)
+    student.password = hashedPassword;
+
     const result = await db.collection<User>('users').insertOne(student);
+    
+    // Verify password was saved correctly
+    const savedUser = await db.collection<User>('users').findOne({ _id: result.insertedId });
+    if (!savedUser?.password) {
+      console.error('ERROR: User created but password was not saved!', {
+        userId: result.insertedId,
+        username: data.username,
+      });
+    }
 
     // Create student profile with new structure
     await db.collection('student_profiles').insertOne({
