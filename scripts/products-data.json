@@ -1,0 +1,499 @@
+[
+  {
+    "id": 1,
+    "name": "Fender Stratocaster American Professional II",
+    "category": "guitar",
+    "subcategory": "electric",
+    "brand": "Fender",
+    "price": 15990000,
+    "originalPrice": 17990000,
+    "image": "/electric/electric-guitar.jpg",
+    "images": [
+      "/electric/electric-guitar.jpg",
+      "/wallpaper-1.jpg",
+      "/wallpaper-2.jpg",
+      "/wallpaper-3.jpg"
+    ],
+    "rating": 4.8,
+    "reviews": 124,
+    "inStock": true,
+    "isNew": true,
+    "description": "Classic American electric guitar with modern features",
+    "specifications": {
+      "Thương hiệu": "Fender",
+      "Dáng đàn": "Stratocaster",
+      "Chất liệu phần thân": "Alder",
+      "Finish": "3-Color Sunburst",
+      "Cần đàn": "Maple",
+      "Mặt phím": "Rosewood",
+      "Khóa đàn": "Fender Deluxe",
+      "Kiểu pickup": "Single Coil",
+      "Pickups": "3x V-Mod II Single-Coil",
+      "Màu sắc": "3-Color Sunburst"
+    },
+    "features": [
+      "American Professional II pickups",
+      "Deep C neck profile",
+      "2-point tremolo system",
+      "Locking tuners",
+      "Premium hardware"
+    ],
+    "accessories": [
+      { "name": "Bao đàn", "image": "/electric/acc/case.jpg" },
+      { "name": "Dây đàn", "image": "/electric/acc/electric-string.jpg" },
+      { "name": "Pick", "image": "/electric/acc/pick.jpg" },
+      { "name": "Cáp", "image": "/electric/acc/cable.jpg" },
+      { "name": "Hướng dẫn sử dụng", "image": "/electric/acc/document.jpg" }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Gibson Les Paul Standard '50s",
+    "category": "guitar",
+    "subcategory": "electric",
+    "brand": "Gibson",
+    "price": 18990000,
+    "originalPrice": null,
+    "image": "/electric/electric-guitar-2.jpg",
+    "images": [
+      "/electric/electric-guitar-2.jpg",
+      "/wallpaper-2.jpg",
+      "/wallpaper-3.jpg",
+      "/wallpaper-4.jpg"
+    ],
+    "rating": 4.9,
+    "reviews": 89,
+    "inStock": true,
+    "isNew": false,
+    "description": "Iconic Les Paul with classic '50s specifications",
+    "specifications": {
+      "Thương hiệu": "Gibson",
+      "Dáng đàn": "Les Paul",
+      "Chất liệu phần thân": "Mahogany",
+      "Finish": "Heritage Cherry Sunburst",
+      "Cần đàn": "Mahogany",
+      "Mặt phím": "Rosewood",
+      "Khóa đàn": "Grover Rotomatic",
+      "Kiểu pickup": "Humbucker",
+      "Pickups": "2x Burstbucker Pro",
+      "Màu sắc": "Heritage Cherry Sunburst"
+    },
+    "features": [
+      "Burstbucker Pro pickups",
+      "Mahogany body and neck",
+      "Rosewood fingerboard",
+      "Tune-o-matic bridge",
+      "Classic '50s neck profile"
+    ],
+    "accessories": [
+      { "name": "Bao đàn", "image": "/electric/acc/case.jpg" },
+      { "name": "Dây đàn", "image": "/electric/acc/electric-string.jpg" },
+      { "name": "Pick", "image": "/electric/acc/pick.jpg" },
+      { "name": "Cáp", "image": "/electric/acc/cable.jpg" },
+      { "name": "Hướng dẫn sử dụng", "image": "/electric/acc/document.jpg" }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Martin D-28 Standard",
+    "category": "guitar",
+    "subcategory": "acoustic",
+    "brand": "Martin",
+    "price": 12990000,
+    "originalPrice": 13990000,
+    "image": "/acoustic/acoustic-guitar.jpg",
+    "images": [
+      "/acoustic/acoustic-guitar.jpg",
+      "/wallpaper-1.jpg",
+      "/wallpaper-2.jpg"
+    ],
+    "rating": 4.7,
+    "reviews": 156,
+    "inStock": true,
+    "isNew": true,
+    "description": "The legendary D-28 with Sitka spruce top and East Indian rosewood back and sides",
+    "specifications": {
+      "Thương hiệu": "Martin",
+      "Dáng đàn": "Dreadnought",
+      "Chất liệu phần thân": "Sitka Spruce Top, East Indian Rosewood Back & Sides",
+      "Finish": "Gloss",
+      "Cần đàn": "Select Hardwood",
+      "Mặt phím": "Ebony",
+      "Khóa đàn": "Chrome Enclosed Gear",
+      "Kiểu pickup": "None",
+      "Pickups": "None",
+      "Màu sắc": "Natural"
+    },
+    "features": [
+      "Sitka spruce top",
+      "East Indian rosewood back and sides",
+      "Ebony fingerboard",
+      "Bone nut and saddle",
+      "Chrome enclosed tuners"
+    ],
+    "accessories": [
+      { "name": "Bao đàn", "image": "/acoustic/acc/case.jpg" },
+      { "name": "Dây đàn", "image": "/acoustic/acc/string.jpg" },
+      { "name": "Capo", "image": "/acoustic/acc/capo.jpg" },
+      { "name": "Hướng dẫn sử dụng", "image": "/acoustic/acc/document.jpg" }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Taylor 814ce V-Class",
+    "category": "guitar",
+    "subcategory": "acoustic",
+    "brand": "Taylor",
+    "price": 14990000,
+    "originalPrice": null,
+    "image": "/acoustic/acoustic-guitar-2.jpg",
+    "images": [
+      "/acoustic/acoustic-guitar-2.jpg",
+      "/wallpaper-3.jpg",
+      "/wallpaper-4.jpg"
+    ],
+    "rating": 4.6,
+    "reviews": 203,
+    "inStock": true,
+    "isNew": false,
+    "description": "Premium acoustic-electric with V-Class bracing and Expression System 2",
+    "specifications": {
+      "Thương hiệu": "Taylor",
+      "Dáng đàn": "Grand Auditorium",
+      "Chất liệu phần thân": "Sitka Spruce Top, Indian Rosewood Back & Sides",
+      "Finish": "Gloss",
+      "Cần đàn": "Tropical Mahogany",
+      "Mặt phím": "Ebony",
+      "Khóa đàn": "Taylor Gold",
+      "Kiểu pickup": "Expression System 2",
+      "Pickups": "ES2",
+      "Màu sắc": "Natural"
+    },
+    "features": [
+      "V-Class bracing",
+      "Expression System 2 pickup",
+      "Indian rosewood back and sides",
+      "Ebony fingerboard",
+      "Taylor Gold tuners"
+    ],
+    "accessories": [
+      { "name": "Bao đàn", "image": "/acoustic/acc/case.jpg" },
+      { "name": "Dây đàn", "image": "/acoustic/acc/string.jpg" },
+      { "name": "Capo", "image": "/acoustic/acc/capo.jpg" },
+      { "name": "Hướng dẫn sử dụng", "image": "/acoustic/acc/document.jpg" }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Marshall JCM800 2203",
+    "category": "amplifier",
+    "subcategory": "tube",
+    "brand": "Marshall",
+    "price": 8990000,
+    "originalPrice": 9990000,
+    "image": "/amp/amp-1.jpg",
+    "images": [
+      "/amp/amp-1.jpg",
+      "/wallpaper-1.jpg",
+      "/wallpaper-2.jpg"
+    ],
+    "rating": 4.8,
+    "reviews": 167,
+    "inStock": true,
+    "isNew": true,
+    "description": "Classic tube amp head with 100W power and legendary tone",
+    "specifications": {
+      "Thương hiệu": "Marshall",
+      "Loại ampli": "Tube Head",
+      "Công suất": "100W RMS",
+      "Speaker": "None (Head only)",
+      "Amp Models": "JCM800",
+      "Effects": "Reverb",
+      "Connectivity": "Input, Effects Loop, Speaker Out",
+      "Kích thước": "26 x 9 x 10 inches",
+      "Trọng lượng": "22 lbs"
+    },
+    "features": [
+      "100W tube power",
+      "Classic JCM800 tone",
+      "Effects loop",
+      "Master volume",
+      "Presence and resonance controls"
+    ],
+    "accessories": [
+      { "name": "Kệ", "image": "/amp/acc/stand.jpg" },
+      { "name": "Hướng dẫn sử dụng", "image": "/amp/acc/document.jpg" },
+      { "name": "Dây nguồn", "image": "/amp/acc/power.jpg" },
+      { "name": "Dây AUX", "image": "/amp/acc/aux-cable.jpg" }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Boss Katana 100 MkII",
+    "category": "amplifier",
+    "subcategory": "modeling",
+    "brand": "Boss",
+    "price": 4590000,
+    "originalPrice": null,
+    "image": "/amp/amp-2.jpg",
+    "images": [
+      "/amp/amp-2.jpg",
+      "/wallpaper-2.jpg",
+      "/wallpaper-3.jpg",
+      "/wallpaper-4.jpg"
+    ],
+    "rating": 4.3,
+    "reviews": 167,
+    "inStock": true,
+    "isNew": true,
+    "description": "Digital modeling amp with extensive effects",
+    "specifications": {
+      "Thương hiệu": "Boss",
+      "Loại ampli": "Digital Modeling Combo",
+      "Công suất": "100W RMS",
+      "Speaker": "12-inch Custom Speaker",
+      "Amp Models": "60+ Amp Models",
+      "Effects": "60+ Effects",
+      "Connectivity": "USB, Aux In, Headphone Out",
+      "Kích thước": "22 x 19 x 10 inches",
+      "Trọng lượng": "26 lbs"
+    },
+    "features": [
+      "100W digital modeling power",
+      "60+ amp models",
+      "60+ effects",
+      "USB recording capability",
+      "Aux input for backing tracks",
+      "Headphone output for practice"
+    ],
+    "accessories": [
+      { "name": "Kệ", "image": "/amp/acc/stand.jpg" },
+      { "name": "Hướng dẫn sử dụng", "image": "/amp/acc/document.jpg" },
+      { "name": "Dây nguồn", "image": "/amp/acc/power.jpg" },
+      { "name": "Dây AUX", "image": "/amp/acc/aux-cable.jpg" }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Dây đàn guitar acoustic D'Addario EJ16",
+    "category": "accessories",
+    "subcategory": "strings",
+    "brand": "D'Addario",
+    "price": 180000,
+    "originalPrice": null,
+    "image": "/electric/acc/electric-string.jpg",
+    "images": [
+      "/electric/acc/electric-string.jpg",
+      "/wallpaper-1.jpg",
+      "/wallpaper-2.jpg"
+    ],
+    "rating": 4.6,
+    "reviews": 89,
+    "inStock": true,
+    "isNew": false,
+    "description": "Dây đàn guitar acoustic chất lượng cao, âm thanh sáng và vang",
+    "specifications": {
+      "Thương hiệu": "D'Addario",
+      "Loại dây": "Phosphor Bronze",
+      "Gauge": "12-53",
+      "Chất liệu": "Phosphor Bronze Wound",
+      "Độ bền": "Cao",
+      "Âm thanh": "Sáng, vang, ấm áp",
+      "Phù hợp": "Guitar acoustic",
+      "Bao gồm": "6 dây đầy đủ"
+    },
+    "features": [
+      "Âm thanh sáng và vang",
+      "Độ bền cao",
+      "Dễ chơi",
+      "Phù hợp mọi phong cách âm nhạc",
+      "Chất lượng ổn định"
+    ],
+    "accessories": []
+  },
+  {
+    "id": 8,
+    "name": "Pick guitar Fender 351 Shape",
+    "category": "accessories",
+    "subcategory": "picks",
+    "brand": "Fender",
+    "price": 25000,
+    "originalPrice": null,
+    "image": "/electric/acc/electric-string.jpg",
+    "images": [
+      "/electric/acc/electric-string.jpg",
+      "/wallpaper-3.jpg"
+    ],
+    "rating": 4.4,
+    "reviews": 156,
+    "inStock": true,
+    "isNew": false,
+    "description": "Pick guitar cổ điển với thiết kế truyền thống",
+    "specifications": {
+      "Thương hiệu": "Fender",
+      "Hình dạng": "351 Shape (Tortoise)",
+      "Độ dày": "0.73mm",
+      "Chất liệu": "Celluloid",
+      "Màu sắc": "Tortoise",
+      "Kích thước": "Standard",
+      "Bề mặt": "Mờ",
+      "Bao gồm": "12 picks"
+    },
+    "features": [
+      "Thiết kế cổ điển",
+      "Cầm thoải mái",
+      "Âm thanh tự nhiên",
+      "Độ bền tốt",
+      "Giá cả hợp lý"
+    ],
+    "accessories": []
+  },
+  {
+    "id": 9,
+    "name": "Bao đàn guitar hardshell",
+    "category": "accessories",
+    "subcategory": "cases",
+    "brand": "Gator",
+    "price": 850000,
+    "originalPrice": 950000,
+    "image": "/electric/acc/electric-string.jpg",
+    "images": [
+      "/electric/acc/electric-string.jpg",
+      "/wallpaper-4.jpg"
+    ],
+    "rating": 4.7,
+    "reviews": 73,
+    "inStock": true,
+    "isNew": true,
+    "description": "Bao đàn guitar cứng bảo vệ tối đa cho cây đàn của bạn",
+    "specifications": {
+      "Thương hiệu": "Gator",
+      "Loại bao": "Hardshell Case",
+      "Chất liệu": "ABS Plastic",
+      "Lớp lót": "Plush Interior",
+      "Khóa": "2 khóa an toàn",
+      "Tay cầm": "Có",
+      "Kích thước": "Phù hợp guitar acoustic",
+      "Trọng lượng": "2.5kg"
+    },
+    "features": [
+      "Bảo vệ tối đa",
+      "Thiết kế chắc chắn",
+      "Lớp lót mềm mại",
+      "Khóa an toàn",
+      "Dễ mang theo"
+    ],
+    "accessories": []
+  },
+  {
+    "id": 10,
+    "name": "Capo guitar Kyser Quick-Change",
+    "category": "accessories",
+    "subcategory": "capos",
+    "brand": "Kyser",
+    "price": 320000,
+    "originalPrice": null,
+    "image": "/electric/acc/electric-string.jpg",
+    "images": [
+      "/electric/acc/electric-string.jpg",
+      "/wallpaper-1.jpg"
+    ],
+    "rating": 4.8,
+    "reviews": 201,
+    "inStock": true,
+    "isNew": false,
+    "description": "Capo guitar chất lượng cao, dễ sử dụng và chính xác",
+    "specifications": {
+      "Thương hiệu": "Kyser",
+      "Loại capo": "Quick-Change",
+      "Chất liệu": "Aluminum",
+      "Lò xo": "Stainless Steel Spring",
+      "Màu sắc": "Chrome",
+      "Phù hợp": "Guitar acoustic/classical",
+      "Độ chính xác": "Cao",
+      "Dễ sử dụng": "Có"
+    },
+    "features": [
+      "Thiết kế đơn giản",
+      "Dễ sử dụng một tay",
+      "Độ chính xác cao",
+      "Không làm lệch dây",
+      "Bền bỉ"
+    ],
+    "accessories": []
+  },
+  {
+    "id": 11,
+    "name": "Dây đàn guitar điện Ernie Ball Regular Slinky",
+    "category": "accessories",
+    "subcategory": "strings",
+    "brand": "Ernie Ball",
+    "price": 150000,
+    "originalPrice": null,
+    "image": "/electric/acc/electric-string.jpg",
+    "images": [
+      "/electric/acc/electric-string.jpg",
+      "/wallpaper-2.jpg"
+    ],
+    "rating": 4.5,
+    "reviews": 134,
+    "inStock": true,
+    "isNew": false,
+    "description": "Dây đàn guitar điện phổ biến nhất thế giới",
+    "specifications": {
+      "Thương hiệu": "Ernie Ball",
+      "Loại dây": "Regular Slinky",
+      "Gauge": "10-46",
+      "Chất liệu": "Nickel Plated Steel",
+      "Độ bền": "Tốt",
+      "Âm thanh": "Sáng, sắc nét",
+      "Phù hợp": "Guitar điện",
+      "Bao gồm": "6 dây đầy đủ"
+    },
+    "features": [
+      "Âm thanh sáng sắc nét",
+      "Độ bền tốt",
+      "Dễ chơi",
+      "Phù hợp mọi phong cách",
+      "Giá cả hợp lý"
+    ],
+    "accessories": []
+  },
+  {
+    "id": 12,
+    "name": "Strap đàn guitar Fender Deluxe",
+    "category": "accessories",
+    "subcategory": "straps",
+    "brand": "Fender",
+    "price": 280000,
+    "originalPrice": 320000,
+    "image": "/electric/acc/electric-string.jpg",
+    "images": [
+      "/electric/acc/electric-string.jpg",
+      "/wallpaper-3.jpg"
+    ],
+    "rating": 4.3,
+    "reviews": 67,
+    "inStock": true,
+    "isNew": true,
+    "description": "Dây đeo đàn guitar cao cấp với thiết kế đẹp mắt",
+    "specifications": {
+      "Thương hiệu": "Fender",
+      "Loại dây": "Deluxe",
+      "Chất liệu": "Leather + Nylon",
+      "Chiều dài": "Adjustable 100-130cm",
+      "Chiều rộng": "5cm",
+      "Màu sắc": "Black",
+      "Khóa": "Có",
+      "Thiết kế": "Vintage"
+    },
+    "features": [
+      "Thiết kế vintage đẹp",
+      "Chất liệu cao cấp",
+      "Điều chỉnh chiều dài dễ dàng",
+      "Thoải mái khi đeo",
+      "Bền bỉ"
+    ],
+    "accessories": []
+  }
+]
