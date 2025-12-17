@@ -798,7 +798,14 @@ export default function WeekCalendar({
                               }
                             }
                             if (role === "teacher") {
-                              if (isPastClass || isCancelledOnDate) {
+                              // Allow attendance for today and past dates
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              const classDate = new Date(date);
+                              classDate.setHours(0, 0, 0, 0);
+                              const isTodayOrPast = classDate.getTime() <= today.getTime();
+                              
+                              if (isTodayOrPast || isCancelledOnDate) {
                                 handleClassClick(cls, date, "attendance");
                               } else {
                                 handleClassClick(cls, date, "edit");
@@ -1215,8 +1222,8 @@ function ClassActionModal({
     if (type === "cancel" && onCancelClass) {
       onCancelClass(classData._id!.toString(), date);
       onClose();
-    } else if (type === "edit" && onEditClass) {
-      onEditClass(classData._id!.toString());
+    } else if (type === "edit") {
+      // Edit modal is now view-only, just close
       onClose();
     } else if (type === "absence" && onRequestAbsence) {
       onRequestAbsence(classData._id!.toString(), date, reason);
@@ -1234,7 +1241,7 @@ function ClassActionModal({
       case "cancel":
         return "Hủy lớp học";
       case "edit":
-        return "Chỉnh sửa lớp học";
+        return "Thông tin lớp học";
       case "attendance":
         return "Điểm danh";
       case "absence":
@@ -1476,11 +1483,11 @@ function ClassActionModal({
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-xl shadow-2xl transition-all transform ${
-          type === "attendance" && role === "teacher"
-            ? "max-w-6xl w-full mx-4 h-[90vh] flex flex-col"
-            : "max-w-lg w-full mx-4 p-6"
-        }`}
+          className={`bg-white rounded-xl shadow-2xl transition-all transform ${
+            (type === "attendance" || type === "edit") && role === "teacher"
+              ? "max-w-6xl w-full mx-4 h-[90vh] flex flex-col"
+              : "max-w-lg w-full mx-4 p-6"
+          }`}
         style={{
           borderColor: colors.brown,
           borderWidth: "2px",
@@ -1490,7 +1497,7 @@ function ClassActionModal({
         {/* Header */}
         <div
           className={`flex items-center justify-between pb-4 border-b ${
-            type === "attendance" && role === "teacher"
+            (type === "attendance" || type === "edit") && role === "teacher"
               ? "p-6 flex-shrink-0"
               : "mb-6"
           }`}
@@ -1511,12 +1518,12 @@ function ClassActionModal({
           </button>
         </div>
 
-        {/* Two-column layout for attendance modal */}
-        {type === "attendance" && role === "teacher" ? (
+        {/* Two-column layout for attendance and edit modal */}
+        {(type === "attendance" || type === "edit") && role === "teacher" ? (
           <div className="flex-1 overflow-hidden flex">
             {/* Left side - Class Info */}
             <div
-              className="w-80 flex-shrink-0 p-6 border-r overflow-y-auto"
+              className="w-100 flex-shrink-0 p-6 border-r overflow-y-auto"
               style={{
                 borderColor: colors.light,
                 backgroundColor: colors.light,
@@ -1741,94 +1748,96 @@ function ClassActionModal({
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    {currentStatus ? (
-                                      <div
-                                        className="px-4 py-2 rounded-lg text-sm font-medium"
-                                        style={{
-                                          backgroundColor:
-                                            currentStatus === "present"
-                                              ? "#10B981"
-                                              : currentStatus === "absent"
-                                              ? "#DC2626"
-                                              : "#F59E0B",
-                                          color: "white",
-                                        }}
-                                      >
-                                        {currentStatus === "present"
-                                          ? "C"
-                                          : currentStatus === "absent"
-                                          ? "K"
-                                          : "P"}
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <button
-                                          onClick={() =>
-                                            handleMarkAttendanceClick(
-                                              studentId,
-                                              student.fullName,
-                                              "present"
-                                            )
-                                          }
-                                          disabled={isSaving}
-                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                            isSaving
-                                              ? "cursor-not-allowed opacity-50"
-                                              : "cursor-pointer hover:opacity-75"
-                                          }`}
+                                  {type === "attendance" && (
+                                    <div className="flex items-center gap-2">
+                                      {currentStatus ? (
+                                        <div
+                                          className="px-4 py-2 rounded-lg text-sm font-medium"
                                           style={{
-                                            backgroundColor: "#10B981",
+                                            backgroundColor:
+                                              currentStatus === "present"
+                                                ? "#10B981"
+                                                : currentStatus === "absent"
+                                                ? "#DC2626"
+                                                : "#F59E0B",
                                             color: "white",
                                           }}
                                         >
-                                          ✅ Có
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            handleMarkAttendanceClick(
-                                              studentId,
-                                              student.fullName,
-                                              "absent"
-                                            )
-                                          }
-                                          disabled={isSaving}
-                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                            isSaving
-                                              ? "cursor-not-allowed opacity-50"
-                                              : "cursor-pointer hover:opacity-75"
-                                          }`}
-                                          style={{
-                                            backgroundColor: "#DC2626",
-                                            color: "white",
-                                          }}
-                                        >
-                                          ❌ Vắng
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            handleMarkAttendanceClick(
-                                              studentId,
-                                              student.fullName,
-                                              "excused"
-                                            )
-                                          }
-                                          disabled={isSaving}
-                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                            isSaving
-                                              ? "cursor-not-allowed opacity-50"
-                                              : "cursor-pointer hover:opacity-75"
-                                          }`}
-                                          style={{
-                                            backgroundColor: "#F59E0B",
-                                            color: "white",
-                                          }}
-                                        >
-                                          ⚠️ Có phép
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
+                                          {currentStatus === "present"
+                                            ? "C"
+                                            : currentStatus === "absent"
+                                            ? "K"
+                                            : "P"}
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <button
+                                            onClick={() =>
+                                              handleMarkAttendanceClick(
+                                                studentId,
+                                                student.fullName,
+                                                "present"
+                                              )
+                                            }
+                                            disabled={isSaving}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                              isSaving
+                                                ? "cursor-not-allowed opacity-50"
+                                                : "cursor-pointer hover:opacity-75"
+                                            }`}
+                                            style={{
+                                              backgroundColor: "#10B981",
+                                              color: "white",
+                                            }}
+                                          >
+                                            ✅ Có
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              handleMarkAttendanceClick(
+                                                studentId,
+                                                student.fullName,
+                                                "absent"
+                                              )
+                                            }
+                                            disabled={isSaving}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                              isSaving
+                                                ? "cursor-not-allowed opacity-50"
+                                                : "cursor-pointer hover:opacity-75"
+                                            }`}
+                                            style={{
+                                              backgroundColor: "#DC2626",
+                                              color: "white",
+                                            }}
+                                          >
+                                            ❌ Vắng
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              handleMarkAttendanceClick(
+                                                studentId,
+                                                student.fullName,
+                                                "excused"
+                                              )
+                                            }
+                                            disabled={isSaving}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                              isSaving
+                                                ? "cursor-not-allowed opacity-50"
+                                                : "cursor-pointer hover:opacity-75"
+                                            }`}
+                                            style={{
+                                              backgroundColor: "#F59E0B",
+                                              color: "white",
+                                            }}
+                                          >
+                                            ⚠️ Có phép
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }
@@ -1876,94 +1885,96 @@ function ClassActionModal({
                                     {makeup.fullName || "Học sinh"}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  {currentStatus ? (
-                                    <div
-                                      className="px-4 py-2 rounded-lg text-sm font-medium"
-                                      style={{
-                                        backgroundColor:
-                                          currentStatus === "present"
-                                            ? "#10B981"
-                                            : currentStatus === "absent"
-                                            ? "#DC2626"
-                                            : "#F59E0B",
-                                        color: "white",
-                                      }}
-                                    >
-                                      {currentStatus === "present"
-                                        ? "C"
-                                        : currentStatus === "absent"
-                                        ? "K"
-                                        : "P"}
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <button
-                                        onClick={() =>
-                                          handleMarkAttendanceClick(
-                                            studentId,
-                                            makeup.fullName || "Học sinh",
-                                            "present"
-                                          )
-                                        }
-                                        disabled={isSaving}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                          isSaving
-                                            ? "cursor-not-allowed opacity-50"
-                                            : "cursor-pointer hover:opacity-75"
-                                        }`}
+                                {type === "attendance" && (
+                                  <div className="flex items-center gap-2">
+                                    {currentStatus ? (
+                                      <div
+                                        className="px-4 py-2 rounded-lg text-sm font-medium"
                                         style={{
-                                          backgroundColor: "#10B981",
+                                          backgroundColor:
+                                            currentStatus === "present"
+                                              ? "#10B981"
+                                              : currentStatus === "absent"
+                                              ? "#DC2626"
+                                              : "#F59E0B",
                                           color: "white",
                                         }}
                                       >
-                                        ✅ Có
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          handleMarkAttendanceClick(
-                                            studentId,
-                                            makeup.fullName || "Học sinh",
-                                            "absent"
-                                          )
-                                        }
-                                        disabled={isSaving}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                          isSaving
-                                            ? "cursor-not-allowed opacity-50"
-                                            : "cursor-pointer hover:opacity-75"
-                                        }`}
-                                        style={{
-                                          backgroundColor: "#DC2626",
-                                          color: "white",
-                                        }}
-                                      >
-                                        ❌ Vắng
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          handleMarkAttendanceClick(
-                                            studentId,
-                                            makeup.fullName || "Học sinh",
-                                            "excused"
-                                          )
-                                        }
-                                        disabled={isSaving}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                          isSaving
-                                            ? "cursor-not-allowed opacity-50"
-                                            : "cursor-pointer hover:opacity-75"
-                                        }`}
-                                        style={{
-                                          backgroundColor: "#F59E0B",
-                                          color: "white",
-                                        }}
-                                      >
-                                        ⚠️ Có phép
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
+                                        {currentStatus === "present"
+                                          ? "C"
+                                          : currentStatus === "absent"
+                                          ? "K"
+                                          : "P"}
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <button
+                                          onClick={() =>
+                                            handleMarkAttendanceClick(
+                                              studentId,
+                                              makeup.fullName || "Học sinh",
+                                              "present"
+                                            )
+                                          }
+                                          disabled={isSaving}
+                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                            isSaving
+                                              ? "cursor-not-allowed opacity-50"
+                                              : "cursor-pointer hover:opacity-75"
+                                          }`}
+                                          style={{
+                                            backgroundColor: "#10B981",
+                                            color: "white",
+                                          }}
+                                        >
+                                          ✅ Có
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            handleMarkAttendanceClick(
+                                              studentId,
+                                              makeup.fullName || "Học sinh",
+                                              "absent"
+                                            )
+                                          }
+                                          disabled={isSaving}
+                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                            isSaving
+                                              ? "cursor-not-allowed opacity-50"
+                                              : "cursor-pointer hover:opacity-75"
+                                          }`}
+                                          style={{
+                                            backgroundColor: "#DC2626",
+                                            color: "white",
+                                          }}
+                                        >
+                                          ❌ Vắng
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            handleMarkAttendanceClick(
+                                              studentId,
+                                              makeup.fullName || "Học sinh",
+                                              "excused"
+                                            )
+                                          }
+                                          disabled={isSaving}
+                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                            isSaving
+                                              ? "cursor-not-allowed opacity-50"
+                                              : "cursor-pointer hover:opacity-75"
+                                          }`}
+                                          style={{
+                                            backgroundColor: "#F59E0B",
+                                            color: "white",
+                                          }}
+                                        >
+                                          ⚠️ Có phép
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -1991,7 +2002,7 @@ function ClassActionModal({
           </div>
         ) : (
           <>
-            {/* Class Info for non-attendance modals */}
+            {/* Class Info for other modals (not attendance/edit for teacher) */}
             <div className="mb-6 space-y-3">
               <div className="flex items-start gap-3">
                 <div
@@ -2120,145 +2131,6 @@ function ClassActionModal({
           </div>
         )}
 
-        {/* Student list for teacher edit view */}
-        {type === "edit" && role === "teacher" && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div
-                className="w-1 h-6 rounded-full"
-                style={{ backgroundColor: colors.mediumGreen }}
-              />
-              <h4
-                className="text-lg font-semibold"
-                style={{ color: colors.darkBrown }}
-              >
-                Danh sách học viên
-              </h4>
-            </div>
-
-            {/* Loading State with Skeleton */}
-            {loadingStudents ? (
-              <div className="space-y-3 animate-pulse">
-                {/* Skeleton for regular students section */}
-                <div>
-                  <div
-                    className="h-4 w-32 rounded mb-2"
-                    style={{ backgroundColor: colors.light }}
-                  />
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="h-10 rounded-lg mb-2"
-                      style={{ backgroundColor: colors.light }}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
-                {/* Regular students */}
-                {getStudentsForDate().regular.length > 0 && (
-                  <div>
-                    <div
-                      className="text-xs font-semibold mb-2 px-1 uppercase tracking-wide"
-                      style={{ color: colors.brown }}
-                    >
-                      Học thường xuyên ({getStudentsForDate().regular.length})
-                    </div>
-                    <div className="space-y-2">
-                      {getStudentsForDate().regular.map(
-                        (student: User & { hasAbsence?: boolean }) => (
-                          <div
-                            key={student._id?.toString()}
-                            className="flex items-center justify-between p-3 rounded-lg transition-all hover:shadow-md"
-                            style={{
-                              backgroundColor: colors.light,
-                              color: colors.darkBrown,
-                            }}
-                          >
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold"
-                                style={{
-                                  backgroundColor: colors.mediumGreen,
-                                  color: "white",
-                                }}
-                              >
-                                {student.fullName.charAt(0).toUpperCase()}
-                              </div>
-                              <span className="font-medium">
-                                {student.fullName}
-                              </span>
-                            </div>
-                            {student.hasAbsence && (
-                              <span
-                                className="text-xs px-2 py-1 rounded-full"
-                                style={{
-                                  backgroundColor: "#FEE2E2",
-                                  color: "#DC2626",
-                                }}
-                              >
-                                Đã xin vắng
-                              </span>
-                            )}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-                {/* Makeup students */}
-                {getStudentsForDate().makeup.length > 0 && (
-                  <div>
-                    <div
-                      className="text-xs font-semibold mb-2 px-1 uppercase tracking-wide"
-                      style={{ color: colors.brown }}
-                    >
-                      Học bù ({getStudentsForDate().makeup.length})
-                    </div>
-                    <div className="space-y-2">
-                      {getStudentsForDate().makeup.map((makeup: User) => (
-                        <div
-                          key={makeup._id?.toString()}
-                          className="flex items-center gap-2 p-3 rounded-lg transition-all hover:shadow-md"
-                          style={{
-                            backgroundColor: colors.lightGreen,
-                            color: colors.darkBrown,
-                          }}
-                        >
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold"
-                            style={{
-                              backgroundColor: colors.mediumGreen,
-                              color: "white",
-                            }}
-                          >
-                            {makeup.fullName?.charAt(0).toUpperCase() || "?"}
-                          </div>
-                          <span className="font-medium">
-                            {makeup.fullName || "Học sinh"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {getStudentsForDate().regular.length === 0 &&
-                  getStudentsForDate().makeup.length === 0 && (
-                    <div
-                      className="text-center py-8 rounded-lg"
-                      style={{
-                        backgroundColor: colors.light,
-                        color: colors.brown,
-                      }}
-                    >
-                      <div className="text-sm">Chưa có học viên đăng ký</div>
-                    </div>
-                  )}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Confirmation Modal for Attendance */}
         {confirmAttendance && (
@@ -2318,51 +2190,37 @@ function ClassActionModal({
 
         {/* Action Buttons */}
         <div
-          className="flex justify-end gap-3 pt-2 border-t"
+          className="flex justify-end gap-3 pt-2 border-t flex-shrink-0"
           style={{ borderColor: colors.light }}
         >
-          {type === "edit" && role === "teacher" && onCancelClass && (
+          {(type === "attendance" || type === "edit") && role === "teacher" ? (
             <button
-              onClick={async () => {
-                const confirmed = await showConfirm(
-                  "Xác nhận hủy lớp học",
-                  "Bạn có chắc chắn muốn hủy lớp học này? Tất cả học viên sẽ được tính vắng có phép và được cộng buổi học bù.",
-                  {
-                    type: "warning",
-                    confirmText: "Hủy lớp",
-                    cancelText: "Không",
-                  }
-                );
-                if (confirmed) {
-                  onCancelClass(classData._id!.toString(), date);
-                  onClose();
-                }
-              }}
-              className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
+              onClick={onClose}
+              className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
               style={{
-                backgroundColor: "#DC2626",
+                backgroundColor: colors.brown,
               }}
             >
-              Hủy lớp
+              Đóng
             </button>
+          ) : (
+            <>
+              <button
+                onClick={handleSubmit}
+                className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: colors.mediumGreen,
+                }}
+                disabled={
+                  (type === "cancel" || type === "absence") && !reason.trim()
+                }
+              >
+                {type === "cancel" || type === "absence" || type === "makeup"
+                  ? "Xác nhận"
+                  : "Đóng"}
+              </button>
+            </>
           )}
-          <button
-            onClick={type === "attendance" ? onClose : handleSubmit}
-            className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor:
-                type === "attendance" ? colors.brown : colors.mediumGreen,
-            }}
-            disabled={
-              (type === "cancel" || type === "absence") && !reason.trim()
-            }
-          >
-            {type === "edit"
-              ? "Chỉnh sửa"
-              : type === "attendance"
-              ? "Đóng"
-              : "Xác nhận"}
-          </button>
         </div>
       </div>
     </div>

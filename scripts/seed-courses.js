@@ -1,7 +1,17 @@
 const { MongoClient } = require('mongodb');
 require('dotenv').config({ path: '.env.local' });
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/phucnguyenguitar';
+// Get database name from MONGODB_URI
+function getDatabaseName(uri) {
+  if (process.env.MONGODB_DB_NAME) {
+    return process.env.MONGODB_DB_NAME;
+  }
+  const urlMatch = uri.match(/mongodb(\+srv)?:\/\/[^/]+\/([^?]+)/);
+  if (urlMatch && urlMatch[2]) {
+    return urlMatch[2];
+  }
+  return 'thaybien';
+}
 
 const courses = [
   {
@@ -64,30 +74,38 @@ async function seedCourses() {
   let client;
   
   try {
-    client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    console.log('Connected to MongoDB');
+    if (!process.env.MONGODB_URI) {
+      console.error('❌ Vui lòng tạo file .env.local với MONGODB_URI');
+      process.exit(1);
+    }
 
-    const db = client.db('phucnguyenguitar');
+    const uri = process.env.MONGODB_URI;
+    client = new MongoClient(uri);
+    await client.connect();
+    console.log('✅ Đã kết nối MongoDB');
+
+    const databaseName = getDatabaseName(uri);
+    console.log(`📦 Sử dụng database: ${databaseName}`);
+    const db = client.db(databaseName);
     const coursesCollection = db.collection('courses');
 
     // Check if courses already exist
     const existingCourses = await coursesCollection.countDocuments();
     
     if (existingCourses > 0) {
-      console.log(`✅ ${existingCourses} courses already exist in database`);
+      console.log(`✅ Đã có ${existingCourses} courses trong database`);
       return;
     }
 
     // Insert courses
     const result = await coursesCollection.insertMany(courses);
-    console.log(`✅ Successfully created ${result.insertedCount} courses:`);
+    console.log(`✅ Đã tạo ${result.insertedCount} courses:`);
     courses.forEach((course, index) => {
       console.log(`   ${index + 1}. ${course.name}`);
     });
     
   } catch (error) {
-    console.error('❌ Error seeding courses:', error);
+    console.error('❌ Lỗi khi seed courses:', error);
     process.exit(1);
   } finally {
     if (client) {

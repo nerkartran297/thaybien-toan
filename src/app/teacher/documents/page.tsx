@@ -29,11 +29,15 @@ export default function DocumentsManagementPage() {
   const [formData, setFormData] = useState({
     name: "",
     file: null as File | null,
-    classes: [] as string[],
     grade: "",
     note: "",
     category: "Bài tập" as DocumentCategory,
   });
+  const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | "Tất cả">("Tất cả");
+  const [selectedGrade, setSelectedGrade] = useState<number | "Tất cả">("Tất cả");
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedDocForShare, setSelectedDocForShare] = useState<Document | null>(null);
+  const [shareClasses, setShareClasses] = useState<string[]>([]);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "teacher")) {
@@ -80,11 +84,44 @@ export default function DocumentsManagementPage() {
     }
   };
 
-  const handleClassToggle = (classId: string) => {
-    const newClasses = formData.classes.includes(classId)
-      ? formData.classes.filter((id) => id !== classId)
-      : [...formData.classes, classId];
-    setFormData({ ...formData, classes: newClasses });
+  const handleShareToggle = (classId: string) => {
+    const newClasses = shareClasses.includes(classId)
+      ? shareClasses.filter((id) => id !== classId)
+      : [...shareClasses, classId];
+    setShareClasses(newClasses);
+  };
+
+  const handleOpenShareModal = (doc: Document) => {
+    setSelectedDocForShare(doc);
+    setShareClasses(
+      doc.classes?.map((id) => (typeof id === "string" ? id : id.toString())) || []
+    );
+    setShowShareModal(true);
+  };
+
+  const handleSaveShare = async () => {
+    if (!selectedDocForShare) return;
+
+    try {
+      const response = await fetch(`/api/documents/${selectedDocForShare._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classes: shareClasses }),
+      });
+
+      if (response.ok) {
+        await fetchDocuments();
+        setShowShareModal(false);
+        setSelectedDocForShare(null);
+        setShareClasses([]);
+        alert("Chia sẻ tài liệu thành công!");
+      } else {
+        alert("Có lỗi xảy ra khi chia sẻ tài liệu");
+      }
+    } catch (error) {
+      console.error("Error sharing document:", error);
+      alert("Có lỗi xảy ra khi chia sẻ tài liệu");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,17 +132,12 @@ export default function DocumentsManagementPage() {
       return;
     }
 
-    if (formData.classes.length === 0) {
-      alert("Vui lòng chọn ít nhất một lớp");
-      return;
-    }
-
     setUploading(true);
     try {
       const uploadFormData = new FormData();
       uploadFormData.append("file", formData.file);
       uploadFormData.append("name", formData.name);
-      uploadFormData.append("classes", JSON.stringify(formData.classes));
+      uploadFormData.append("classes", JSON.stringify([])); // Default empty, share later
       if (formData.grade) {
         uploadFormData.append("grade", formData.grade);
       }
@@ -125,7 +157,6 @@ export default function DocumentsManagementPage() {
         setFormData({
           name: "",
           file: null,
-          classes: [],
           grade: "",
           note: "",
           category: "Bài tập",
@@ -173,6 +204,16 @@ export default function DocumentsManagementPage() {
       .join(", ");
   };
 
+  const filteredDocuments = documents.filter((doc) => {
+    if (selectedCategory !== "Tất cả" && doc.category !== selectedCategory) {
+      return false;
+    }
+    if (selectedGrade !== "Tất cả" && doc.grade !== selectedGrade) {
+      return false;
+    }
+    return true;
+  });
+
   if (authLoading || loading) {
     return (
       <div
@@ -214,6 +255,70 @@ export default function DocumentsManagementPage() {
           </button>
         </div>
 
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow-lg p-4 mb-6">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: colors.darkBrown }}
+              >
+                Phân loại
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) =>
+                  setSelectedCategory(
+                    e.target.value as DocumentCategory | "Tất cả"
+                  )
+                }
+                className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2"
+                style={{
+                  borderColor: colors.brown,
+                  color: colors.darkBrown,
+                }}
+              >
+                <option value="Tất cả">Tất cả</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: colors.darkBrown }}
+              >
+                Khối
+              </label>
+              <select
+                value={selectedGrade}
+                onChange={(e) =>
+                  setSelectedGrade(
+                    e.target.value === "Tất cả"
+                      ? "Tất cả"
+                      : parseInt(e.target.value)
+                  )
+                }
+                className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2"
+                style={{
+                  borderColor: colors.brown,
+                  color: colors.darkBrown,
+                }}
+              >
+                <option value="Tất cả">Tất cả</option>
+                {GRADES.map((grade) => (
+                  <option key={grade} value={grade}>
+                    Khối {grade}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Documents list */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <table className="w-full">
@@ -241,12 +346,6 @@ export default function DocumentsManagementPage() {
                   className="px-6 py-4 text-left text-sm font-semibold"
                   style={{ color: colors.darkBrown }}
                 >
-                  Lớp được phép xem
-                </th>
-                <th
-                  className="px-6 py-4 text-left text-sm font-semibold"
-                  style={{ color: colors.darkBrown }}
-                >
                   Ghi chú
                 </th>
                 <th
@@ -258,17 +357,19 @@ export default function DocumentsManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {documents.length === 0 ? (
+              {filteredDocuments.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={5}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    Chưa có tài liệu nào
+                    {documents.length === 0
+                      ? "Chưa có tài liệu nào"
+                      : "Không tìm thấy tài liệu phù hợp"}
                   </td>
                 </tr>
               ) : (
-                documents.map((doc) => (
+                filteredDocuments.map((doc) => (
                   <tr
                     key={doc._id?.toString() || ""}
                     className="border-b border-gray-200/80 hover:bg-gray-50"
@@ -295,29 +396,31 @@ export default function DocumentsManagementPage() {
                       className="px-6 py-4 text-sm"
                       style={{ color: colors.brown }}
                     >
-                      {getClassNames(
-                        doc.classes?.map((id) =>
-                          typeof id === "string" ? id : id.toString()
-                        ) || []
-                      ) || "-"}
-                    </td>
-                    <td
-                      className="px-6 py-4 text-sm"
-                      style={{ color: colors.brown }}
-                    >
                       {doc.note || "-"}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => handleDelete(doc._id?.toString() || "")}
-                        className="px-3 py-1 rounded text-sm font-medium transition-colors"
-                        style={{
-                          backgroundColor: "#DC2626",
-                          color: "white",
-                        }}
-                      >
-                        Xóa
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleOpenShareModal(doc)}
+                          className="px-3 py-1 rounded text-sm font-medium transition-colors"
+                          style={{
+                            backgroundColor: colors.mediumGreen,
+                            color: "white",
+                          }}
+                        >
+                          Chia sẻ
+                        </button>
+                        <button
+                          onClick={() => handleDelete(doc._id?.toString() || "")}
+                          className="px-3 py-1 rounded text-sm font-medium transition-colors"
+                          style={{
+                            backgroundColor: "#DC2626",
+                            color: "white",
+                          }}
+                        >
+                          Xóa
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -351,7 +454,6 @@ export default function DocumentsManagementPage() {
                     setFormData({
                       name: "",
                       file: null,
-                      classes: [],
                       grade: "",
                       note: "",
                       category: "Bài tập",
@@ -479,44 +581,6 @@ export default function DocumentsManagementPage() {
                     className="block text-sm font-medium mb-2"
                     style={{ color: colors.darkBrown }}
                   >
-                    Lớp được phép xem *
-                  </label>
-                  <div className="max-h-48 overflow-y-auto border rounded-lg p-3 space-y-2">
-                    {classes.length === 0 ? (
-                      <p className="text-sm text-gray-500">Chưa có lớp học nào</p>
-                    ) : (
-                      classes.map((cls) => {
-                        const classId = cls._id?.toString() || "";
-                        return (
-                          <label
-                            key={classId}
-                            className="flex items-center space-x-2 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={formData.classes.includes(classId)}
-                              onChange={() => handleClassToggle(classId)}
-                              className="w-4 h-4"
-                              style={{ accentColor: colors.mediumGreen }}
-                            />
-                            <span
-                              className="text-sm"
-                              style={{ color: colors.darkBrown }}
-                            >
-                              {cls.name}
-                            </span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-2"
-                    style={{ color: colors.darkBrown }}
-                  >
                     Ghi chú
                   </label>
                   <textarea
@@ -546,7 +610,6 @@ export default function DocumentsManagementPage() {
                     setFormData({
                       name: "",
                       file: null,
-                      classes: [],
                       grade: "",
                       note: "",
                       category: "Bài tập",
@@ -572,6 +635,107 @@ export default function DocumentsManagementPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && selectedDocForShare && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-[100]"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.3)" }}
+        >
+          <div
+            className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"
+            style={{ borderColor: colors.brown, borderWidth: "2px" }}
+          >
+            <div className="p-6 flex-shrink-0 border-b" style={{ borderColor: colors.light }}>
+              <div className="flex items-center justify-between">
+                <h3
+                  className="text-xl font-bold"
+                  style={{ color: colors.darkBrown }}
+                >
+                  Chia sẻ tài liệu: {selectedDocForShare.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowShareModal(false);
+                    setSelectedDocForShare(null);
+                    setShareClasses([]);
+                  }}
+                  className="text-2xl font-bold"
+                  style={{ color: colors.brown }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 pb-4 overflow-y-auto flex-1">
+              <p className="text-sm mb-4" style={{ color: colors.brown }}>
+                Chọn các lớp được phép xem tài liệu này:
+              </p>
+              <div className="max-h-64 overflow-y-auto border rounded-lg p-3 space-y-2">
+                {classes.length === 0 ? (
+                  <p className="text-sm text-gray-500">Chưa có lớp học nào</p>
+                ) : (
+                  classes.map((cls) => {
+                    const classId = cls._id?.toString() || "";
+                    return (
+                      <label
+                        key={classId}
+                        className="flex items-center space-x-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={shareClasses.includes(classId)}
+                          onChange={() => handleShareToggle(classId)}
+                          className="w-4 h-4"
+                          style={{ accentColor: colors.mediumGreen }}
+                        />
+                        <span
+                          className="text-sm"
+                          style={{ color: colors.darkBrown }}
+                        >
+                          {cls.name}
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div
+              className="p-6 pt-4 border-t flex justify-end gap-2 flex-shrink-0"
+              style={{ borderColor: colors.light }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowShareModal(false);
+                  setSelectedDocForShare(null);
+                  setShareClasses([]);
+                }}
+                className="px-4 py-2 rounded-lg transition-colors font-medium"
+                style={{
+                  backgroundColor: colors.light,
+                  color: colors.darkBrown,
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveShare}
+                className="px-4 py-2 rounded-lg text-white transition-colors font-medium"
+                style={{
+                  backgroundColor: colors.mediumGreen,
+                }}
+              >
+                Lưu
+              </button>
+            </div>
           </div>
         </div>
       )}

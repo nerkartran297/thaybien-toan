@@ -155,7 +155,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const name = formData.get('name') as string;
-    const classes = JSON.parse(formData.get('classes') as string) as string[];
+    const classesStr = formData.get('classes') as string;
+    const classes = classesStr ? (JSON.parse(classesStr) as string[]) : [];
     const grade = formData.get('grade') ? parseInt(formData.get('grade') as string) : undefined;
     const note = formData.get('note') as string | null;
     const category = formData.get('category') as 'Bài tập' | 'Đề giữa kỳ' | 'Đề cuối kỳ';
