@@ -92,16 +92,50 @@ export default function CreateAnswerPage() {
     }
   };
 
+  const handleDeleteQuestion = (questionIndex: number) => {
+    const newAnswers = [...answers];
+    newAnswers.splice(questionIndex, 1);
+    setAnswers(newAnswers);
+  };
+
   const handleSave = async () => {
-    // Filter out null answers (unanswered questions)
+    // Validation các trường bắt buộc
+    if (!formData.name || formData.name.trim() === "") {
+      alert("Vui lòng nhập tên đề");
+      return;
+    }
+
+    if (!formData.grade || formData.grade.trim() === "") {
+      alert("Vui lòng chọn khối");
+      return;
+    }
+
+    if (!formData.category) {
+      alert("Vui lòng chọn phân loại");
+      return;
+    }
+
+    if (!formData.timeLimit || formData.timeLimit.trim() === "" || parseInt(formData.timeLimit) <= 0) {
+      alert("Vui lòng nhập thời gian làm bài (phút)");
+      return;
+    }
+
+    // Kiểm tra tất cả câu hỏi phải có đáp án
+    if (answers.length === 0) {
+      alert("Vui lòng tạo ít nhất một câu hỏi và chọn đáp án");
+      return;
+    }
+
+    const unansweredQuestions = answers.findIndex((ans) => ans === null);
+    if (unansweredQuestions !== -1) {
+      alert(`Vui lòng chọn đáp án cho câu ${unansweredQuestions + 1}`);
+      return;
+    }
+
+    // Tất cả answers đều có giá trị, không cần filter
     const validAnswers = answers.filter(
       (ans): ans is AnswerOption => ans !== null
     );
-
-    if (validAnswers.length === 0) {
-      alert("Vui lòng nhập ít nhất một đáp án");
-      return;
-    }
 
     setSaving(true);
     try {
@@ -109,9 +143,9 @@ export default function CreateAnswerPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: formData.name,
-          description: formData.description || undefined,
-          grade: formData.grade ? parseInt(formData.grade) : undefined,
+          name: formData.name.trim(),
+          description: formData.description?.trim() || undefined,
+          grade: parseInt(formData.grade),
           category: formData.category,
           timeLimit: parseInt(formData.timeLimit),
           answers: validAnswers,
@@ -327,29 +361,43 @@ export default function CreateAnswerPage() {
 
           {/* Right column - Answer Builder */}
           <div
-            className="w-96 bg-white rounded-lg shadow-lg p-6 overflow-y-auto flex-shrink-0"
+            className="w-96 bg-white rounded-lg shadow-lg flex flex-col flex-shrink-0"
             style={{ borderColor: colors.brown, borderWidth: "2px" }}
           >
-            <h2
-              className="text-xl font-bold mb-4"
-              style={{ color: colors.darkBrown }}
-            >
-              Đáp án
-            </h2>
+            <div className="p-6 flex-shrink-0 border-b" style={{ borderColor: colors.light }}>
+              <h2
+                className="text-xl font-bold"
+                style={{ color: colors.darkBrown }}
+              >
+                Đáp án
+              </h2>
+            </div>
 
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-4">
               {/* Render questions */}
               {answers.map((answer, index) => (
                 <div
                   key={index}
-                  className="border-b pb-4 mb-4"
+                  className="border-b pb-4 mb-4 relative"
                   style={{ borderColor: colors.light }}
                 >
-                  <div
-                    className="text-lg font-semibold mb-3"
-                    style={{ color: colors.darkBrown }}
-                  >
-                    Câu {index + 1}
+                  <div className="flex items-center justify-between mb-3">
+                    <div
+                      className="text-lg font-semibold"
+                      style={{ color: colors.darkBrown }}
+                    >
+                      Câu {index + 1}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteQuestion(index)}
+                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-100 transition-colors text-lg leading-none"
+                      style={{ color: "#DC2626" }}
+                      title="Xóa câu này"
+                    >
+                      ×
+                    </button>
                   </div>
 
                   {/* Answer options */}
@@ -410,14 +458,15 @@ export default function CreateAnswerPage() {
                   + Câu 1
                 </button>
               )}
+              </div>
             </div>
 
-            {/* Save button */}
-            <div className="mt-8 pt-4 border-t" style={{ borderColor: colors.light }}>
+            {/* Save button - Fixed at bottom */}
+            <div className="p-6 pt-4 border-t flex-shrink-0" style={{ borderColor: colors.light }}>
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || answers.filter((a) => a !== null).length === 0}
+                disabled={saving}
                 className="w-full py-3 px-4 rounded-lg text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: colors.brown,

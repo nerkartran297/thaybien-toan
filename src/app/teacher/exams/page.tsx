@@ -328,7 +328,7 @@ export default function ExamsManagementPage() {
                   className="px-6 py-4 text-left text-sm font-semibold"
                   style={{ color: colors.darkBrown }}
                 >
-                  Ghi chú
+                  Mô tả
                 </th>
                 <th
                   className="px-6 py-4 text-center text-sm font-semibold"
@@ -357,8 +357,9 @@ export default function ExamsManagementPage() {
                     className="border-b border-gray-200/80 hover:bg-gray-50"
                   >
                     <td
-                      className="px-6 py-4 text-sm font-medium"
+                      className="px-6 py-4 text-sm font-medium cursor-pointer hover:underline"
                       style={{ color: colors.darkBrown }}
+                      onClick={() => router.push(`/teacher/exams/create-answer?id=${exam._id}`)}
                     >
                       {exam.name}
                     </td>
@@ -384,7 +385,7 @@ export default function ExamsManagementPage() {
                       className="px-6 py-4 text-sm"
                       style={{ color: colors.brown }}
                     >
-                      {exam.note || "-"}
+                      {exam.description || "-"}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
