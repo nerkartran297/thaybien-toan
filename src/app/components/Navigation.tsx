@@ -38,12 +38,20 @@ export default function Navigation() {
                 Lịch học
               </Link>
               {user && user.role === "student" && (
-                <Link
-                  href="/student/documents"
-                  className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-                >
-                  Tài liệu
-                </Link>
+                <>
+                  <Link
+                    href="/student/documents"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Tài liệu
+                  </Link>
+                  <Link
+                    href="/student/exams"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Luyện đề
+                  </Link>
+                </>
               )}
               <Link
                 href="/rules"
@@ -110,6 +118,12 @@ export default function Navigation() {
                     className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
                   >
                     Quản lý tài liệu
+                  </Link>
+                  <Link
+                    href="/teacher/exams"
+                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
+                  >
+                    Quản lý đề
                   </Link>
                 </div>
               </div>
@@ -179,13 +193,22 @@ export default function Navigation() {
                   Lịch học
                 </Link>
                 {user && user.role === "student" && (
-                  <Link
-                    href="/student/documents"
-                    className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Tài liệu
-                  </Link>
+                  <>
+                    <Link
+                      href="/student/documents"
+                      className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Tài liệu
+                    </Link>
+                    <Link
+                      href="/student/exams"
+                      className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Luyện đề
+                    </Link>
+                  </>
                 )}
                 <Link
                   href="/rules"
@@ -267,6 +290,20 @@ export default function Navigation() {
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Quản lý lớp học
+                  </Link>
+                  <Link
+                    href="/teacher/documents"
+                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Quản lý tài liệu
+                  </Link>
+                  <Link
+                    href="/teacher/exams"
+                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Quản lý đề
                   </Link>
                 </div>
               </div>
