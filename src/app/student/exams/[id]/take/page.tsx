@@ -54,7 +54,13 @@ export default function TakeExamPage() {
 
   // Timer effect
   useEffect(() => {
+    // Only start timer if we have valid conditions
     if (timeRemaining > 0 && startedAt && !attempt?.submittedAt) {
+      // Clear any existing interval first
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+
       timerRef.current = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
@@ -65,15 +71,22 @@ export default function TakeExamPage() {
           return prev - 1;
         });
       }, 1000);
+    } else {
+      // Clear interval if conditions not met
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeRemaining, startedAt, attempt?.submittedAt]);
+  }, [startedAt, attempt?.submittedAt]); // Removed timeRemaining from dependencies
 
   const fetchExamAndStartAttempt = async () => {
     try {
