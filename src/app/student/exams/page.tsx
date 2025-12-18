@@ -5,6 +5,7 @@ import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { Exam, ExamCategory } from "@/models/Exam";
+import { ExamAttempt } from "@/models/ExamAttempt";
 
 const colors = {
   light: "#F0EAD2",
@@ -25,6 +26,8 @@ export default function StudentExamsPage() {
   const [selectedGrade, setSelectedGrade] = useState<number | "Tất cả">("Tất cả");
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>([]);
+  const [showActionModal, setShowActionModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "student")) {
@@ -35,6 +38,7 @@ export default function StudentExamsPage() {
   useEffect(() => {
     if (user && user.role === "student") {
       fetchExams();
+      fetchExamAttempts();
     }
   }, [user]);
 
@@ -52,6 +56,18 @@ export default function StudentExamsPage() {
     }
   };
 
+  const fetchExamAttempts = async () => {
+    try {
+      const response = await fetch("/api/exam-attempts");
+      if (response.ok) {
+        const data = await response.json();
+        setExamAttempts(data);
+      }
+    } catch (error) {
+      console.error("Error fetching exam attempts:", error);
+    }
+  };
+
   const filteredExams = exams.filter((exam) => {
     if (selectedCategory !== "Tất cả" && exam.category !== selectedCategory) {
       return false;
@@ -64,16 +80,53 @@ export default function StudentExamsPage() {
 
   const handleExamClick = (exam: Exam) => {
     setSelectedExam(exam);
-    setShowDetailModal(true);
+    
+    // Check if student has submitted this exam
+    const examAttempt = examAttempts.find(
+      (attempt) => attempt.examId === exam._id?.toString() && attempt.submittedAt
+    );
+    
+    if (examAttempt) {
+      // Already submitted, show action modal
+      setShowActionModal(true);
+    } else {
+      // Not submitted yet, show detail modal
+      setShowDetailModal(true);
+    }
   };
 
   const handleStartExam = () => {
     if (selectedExam) {
-      // TODO: Navigate to exam taking page
-      // router.push(`/student/exams/${selectedExam._id}/take`);
-      alert("Chức năng làm bài sẽ được triển khai sau");
+      router.push(`/student/exams/${selectedExam._id}/take`);
       setShowDetailModal(false);
     }
+  };
+
+  const handleRetakeExam = () => {
+    if (selectedExam) {
+      router.push(`/student/exams/${selectedExam._id}/take`);
+      setShowActionModal(false);
+    }
+  };
+
+  const handleViewResult = () => {
+    if (selectedExam) {
+      const examAttempt = examAttempts.find(
+        (attempt) => attempt.examId === selectedExam._id?.toString() && attempt.submittedAt
+      );
+      if (examAttempt) {
+        router.push(`/student/exams/${selectedExam._id}/review?attemptId=${examAttempt._id}`);
+      }
+      setShowActionModal(false);
+    }
+  };
+
+  const getExamStatus = (examId: string | undefined) => {
+    if (!examId) return null;
+    const attempt = examAttempts.find(
+      (a) => a.examId === examId && a.submittedAt
+    );
+    return attempt ? { submitted: true, score: attempt.score, total: attempt.totalQuestions } : null;
   };
 
   if (authLoading || loading) {
@@ -241,6 +294,16 @@ export default function StudentExamsPage() {
                     Xem chi tiết →
                   </span>
                 </div>
+                {(() => {
+                  const status = getExamStatus(exam._id?.toString());
+                  return status ? (
+                    <div className="mt-2 pt-2 border-t" style={{ borderColor: colors.light }}>
+                      <span className="text-xs" style={{ color: colors.brown }}>
+                        Đã làm: {status.score}/{status.total} điểm
+                      </span>
+                    </div>
+                  ) : null;
+                })()}
               </div>
             ))}
           </div>
@@ -381,6 +444,78 @@ export default function StudentExamsPage() {
                 }}
               >
                 Bắt đầu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Modal (View Result / Retake) */}
+      {showActionModal && selectedExam && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowActionModal(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6"
+            style={{
+              borderColor: colors.brown,
+              borderWidth: "2px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6 pb-4 border-b"
+              style={{ borderColor: colors.light }}
+            >
+              <h2
+                className="text-2xl font-bold"
+                style={{ color: colors.darkBrown }}
+              >
+                {selectedExam.name}
+              </h2>
+              <button
+                onClick={() => setShowActionModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                style={{ fontSize: "24px", lineHeight: "1" }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-base mb-4" style={{ color: colors.brown }}>
+                Bạn đã làm đề này rồi. Bạn muốn làm gì?
+              </p>
+            </div>
+
+            <div className="flex gap-4 justify-end">
+              <button
+                onClick={() => setShowActionModal(false)}
+                className="px-5 py-2.5 rounded-lg font-medium transition-all hover:opacity-80"
+                style={{
+                  backgroundColor: colors.light,
+                  color: colors.darkBrown,
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleViewResult}
+                className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
+                style={{
+                  backgroundColor: colors.mediumGreen,
+                }}
+              >
+                Xem lại bài làm
+              </button>
+              <button
+                onClick={handleRetakeExam}
+                className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
+                style={{
+                  backgroundColor: colors.brown,
+                }}
+              >
+                Làm lại
               </button>
             </div>
           </div>
