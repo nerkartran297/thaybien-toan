@@ -84,6 +84,17 @@ export default function DocumentsManagementPage() {
     }
   };
 
+  const handleSelectAll = () => {
+    const allSelected = classes.length > 0 && shareClasses.length === classes.length;
+    if (allSelected) {
+      // Bỏ chọn tất cả
+      setShareClasses([]);
+    } else {
+      // Chọn tất cả
+      setShareClasses(classes.map((cls) => cls._id?.toString() || "").filter((id) => id));
+    }
+  };
+
   const handleShareToggle = (classId: string) => {
     const newClasses = shareClasses.includes(classId)
       ? shareClasses.filter((id) => id !== classId)
@@ -679,7 +690,23 @@ export default function DocumentsManagementPage() {
                 {classes.length === 0 ? (
                   <p className="text-sm text-gray-500">Chưa có lớp học nào</p>
                 ) : (
-                  classes.map((cls) => {
+                  <>
+                    <label className="flex items-center space-x-2 cursor-pointer pb-2 border-b" style={{ borderColor: colors.light }}>
+                      <input
+                        type="checkbox"
+                        checked={classes.length > 0 && shareClasses.length === classes.length}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4"
+                        style={{ accentColor: colors.mediumGreen }}
+                      />
+                      <span
+                        className="text-sm font-semibold"
+                        style={{ color: colors.darkBrown }}
+                      >
+                        Chọn tất cả
+                      </span>
+                    </label>
+                    {classes.map((cls) => {
                     const classId = cls._id?.toString() || "";
                     return (
                       <label
@@ -701,7 +728,8 @@ export default function DocumentsManagementPage() {
                         </span>
                       </label>
                     );
-                  })
+                  })}
+                  </>
                 )}
               </div>
             </div>
