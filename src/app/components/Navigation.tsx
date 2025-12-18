@@ -4,10 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useExam } from "@/contexts/ExamContext";
 
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout, loading } = useAuth();
+  const { isExamInProgress } = useExam();
+  const examInProgress = isExamInProgress();
 
   return (
     <nav className="sticky top-0 flex justify-between items-center px-8 py-2 border-b bg-[#EFEBDF] border-[#FACE84] z-40">
@@ -31,40 +34,85 @@ export default function Navigation() {
           {!user || user.role !== "teacher" ? (
             <>
               {/* Liên hệ */}
-              <Link
-                href="/student/calendar"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Lịch học
-              </Link>
+              {examInProgress ? (
+                <span
+                  className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                  title="Đang làm bài thi, không thể chuyển trang"
+                >
+                  Lịch học
+                </span>
+              ) : (
+                <Link
+                  href="/student/calendar"
+                  className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                >
+                  Lịch học
+                </Link>
+              )}
               {user && user.role === "student" && (
                 <>
-                  <Link
-                    href="/student/documents"
-                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-                  >
-                    Tài liệu
-                  </Link>
-                  <Link
-                    href="/student/exams"
-                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-                  >
-                    Luyện đề
-                  </Link>
+                  {examInProgress ? (
+                    <span
+                      className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                      title="Đang làm bài thi, không thể chuyển trang"
+                    >
+                      Tài liệu
+                    </span>
+                  ) : (
+                    <Link
+                      href="/student/documents"
+                      className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                    >
+                      Tài liệu
+                    </Link>
+                  )}
+                  {examInProgress ? (
+                    <span
+                      className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                      title="Đang làm bài thi, không thể chuyển trang"
+                    >
+                      Luyện đề
+                    </span>
+                  ) : (
+                    <Link
+                      href="/student/exams"
+                      className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                    >
+                      Luyện đề
+                    </Link>
+                  )}
                 </>
               )}
-              <Link
-                href="/rules"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Nội quy
-              </Link>
-              <Link
-                href="/contact"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Liên hệ
-              </Link>
+              {examInProgress ? (
+                <span
+                  className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                  title="Đang làm bài thi, không thể chuyển trang"
+                >
+                  Nội quy
+                </span>
+              ) : (
+                <Link
+                  href="/rules"
+                  className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                >
+                  Nội quy
+                </Link>
+              )}
+              {examInProgress ? (
+                <span
+                  className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                  title="Đang làm bài thi, không thể chuyển trang"
+                >
+                  Liên hệ
+                </span>
+              ) : (
+                <Link
+                  href="/contact"
+                  className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                >
+                  Liên hệ
+                </Link>
+              )}
             </>
           ) : null}
 
@@ -185,45 +233,90 @@ export default function Navigation() {
             {/* Only show these menus when not logged in as teacher */}
             {!user || user.role !== "teacher" ? (
               <>
-                <Link
-                  href="/student/calendar"
-                  className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Lịch học
-                </Link>
+                {examInProgress ? (
+                  <span
+                    className="block text-lg font-semibold text-gray-400 cursor-not-allowed"
+                    title="Đang làm bài thi, không thể chuyển trang"
+                  >
+                    Lịch học
+                  </span>
+                ) : (
+                  <Link
+                    href="/student/calendar"
+                    className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Lịch học
+                  </Link>
+                )}
                 {user && user.role === "student" && (
                   <>
-                    <Link
-                      href="/student/documents"
-                      className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Tài liệu
-                    </Link>
-                    <Link
-                      href="/student/exams"
-                      className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Luyện đề
-                    </Link>
+                    {examInProgress ? (
+                      <span
+                        className="block text-lg font-semibold text-gray-400 cursor-not-allowed"
+                        title="Đang làm bài thi, không thể chuyển trang"
+                      >
+                        Tài liệu
+                      </span>
+                    ) : (
+                      <Link
+                        href="/student/documents"
+                        className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Tài liệu
+                      </Link>
+                    )}
+                    {examInProgress ? (
+                      <span
+                        className="block text-lg font-semibold text-gray-400 cursor-not-allowed"
+                        title="Đang làm bài thi, không thể chuyển trang"
+                      >
+                        Luyện đề
+                      </span>
+                    ) : (
+                      <Link
+                        href="/student/exams"
+                        className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Luyện đề
+                      </Link>
+                    )}
                   </>
                 )}
-                <Link
-                  href="/rules"
-                  className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Nội quy
-                </Link>
-                <Link
-                  href="/contact"
-                  className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Liên hệ
-                </Link>
+                {examInProgress ? (
+                  <span
+                    className="block text-lg font-semibold text-gray-400 cursor-not-allowed"
+                    title="Đang làm bài thi, không thể chuyển trang"
+                  >
+                    Nội quy
+                  </span>
+                ) : (
+                  <Link
+                    href="/rules"
+                    className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Nội quy
+                  </Link>
+                )}
+                {examInProgress ? (
+                  <span
+                    className="block text-lg font-semibold text-gray-400 cursor-not-allowed"
+                    title="Đang làm bài thi, không thể chuyển trang"
+                  >
+                    Liên hệ
+                  </span>
+                ) : (
+                  <Link
+                    href="/contact"
+                    className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Liên hệ
+                  </Link>
+                )}
               </>
             ) : null}
 

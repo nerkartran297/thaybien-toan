@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useExam } from "@/contexts/ExamContext";
+import { useBlockNavigation } from "@/hooks/useBlockNavigation";
 import { Exam, AnswerOption } from "@/models/Exam";
 import { ExamAttempt } from "@/models/ExamAttempt";
 
@@ -19,6 +21,8 @@ const ANSWER_OPTIONS: AnswerOption[] = ["A", "B", "C", "D"];
 
 export default function TakeExamPage() {
   const { user, loading: authLoading } = useAuth();
+  const { activeAttempt, startExam, submitExam } = useExam();
+  const { isExamInProgress } = useBlockNavigation();
   const params = useParams();
   const router = useRouter();
   const examId = params.id as string;
@@ -83,7 +87,27 @@ export default function TakeExamPage() {
       const examData = await examResponse.json();
       setExam(examData);
 
-      // Check if there's an existing attempt
+      // Check if we have an active attempt in context for this exam
+      if (activeAttempt && activeAttempt.examId === examId) {
+        // Use the attempt from context
+        const attemptResponse = await fetch(`/api/exam-attempts/${activeAttempt.attemptId}`);
+        if (attemptResponse.ok) {
+          const existingAttempt = await attemptResponse.json();
+          if (!existingAttempt.submittedAt) {
+            setAttempt(existingAttempt);
+            const startedAtDate = new Date(activeAttempt.startedAt);
+            const timeSpent = Math.floor(
+              (new Date().getTime() - startedAtDate.getTime()) / 1000
+            );
+            const totalTime = examData.timeLimit * 60;
+            setTimeRemaining(Math.max(0, totalTime - timeSpent));
+            setStartedAt(startedAtDate);
+            return; // Exit early, we have the attempt
+          }
+        }
+      }
+
+      // Check if there's an existing attempt in database
       const attemptsResponse = await fetch(`/api/exam-attempts?examId=${examId}`);
       if (attemptsResponse.ok) {
         const attempts = await attemptsResponse.json();
@@ -95,19 +119,26 @@ export default function TakeExamPage() {
           // Resume existing attempt
           setAttempt(existingAttempt);
           // Calculate remaining time
+          const startedAtDate = new Date(existingAttempt.startedAt);
           const timeSpent = Math.floor(
-            (new Date().getTime() - new Date(existingAttempt.startedAt).getTime()) /
-              1000
+            (new Date().getTime() - startedAtDate.getTime()) / 1000
           );
           const totalTime = examData.timeLimit * 60; // Convert to seconds
           setTimeRemaining(Math.max(0, totalTime - timeSpent));
-          setStartedAt(new Date(existingAttempt.startedAt));
+          setStartedAt(startedAtDate);
+          
+          // Update context
+          startExam(examId, existingAttempt._id?.toString() || "", startedAtDate);
         } else {
           // Create new attempt
           const newAttempt = await createNewAttempt(examData.timeLimit);
+          const startedAtDate = new Date();
           setAttempt(newAttempt);
           setTimeRemaining(examData.timeLimit * 60);
-          setStartedAt(new Date());
+          setStartedAt(startedAtDate);
+          
+          // Update context
+          startExam(examId, newAttempt._id?.toString() || "", startedAtDate);
         }
       }
     } catch (error) {
@@ -189,6 +220,8 @@ export default function TakeExamPage() {
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
+        // Clear exam context
+        submitExam();
       } else {
         const error = await response.json();
         alert(error.error || "Có lỗi xảy ra khi nộp bài");

@@ -3,6 +3,7 @@ import { Red_Rose } from "next/font/google";
 import { ThemeProvider } from "./(root)/contexts/ThemeContext";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ExamProvider } from "@/contexts/ExamContext";
 import { ToastStack } from "@/app/components/ToastStack";
 import { ConfirmModalProvider } from "@/app/components/ConfirmModalProvider";
 
@@ -30,9 +31,11 @@ export default async function RootLayout({
       <body className={`${redRose.variable} antialiased`}>
         <ThemeProvider>
           <AuthProvider>
-            {children}
-            <ToastStack />
-            <ConfirmModalProvider />
+            <ExamProvider>
+              {children}
+              <ToastStack />
+              <ConfirmModalProvider />
+            </ExamProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

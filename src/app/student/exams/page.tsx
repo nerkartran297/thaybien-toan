@@ -27,7 +27,6 @@ export default function StudentExamsPage() {
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>([]);
-  const [showActionModal, setShowActionModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "student")) {
@@ -80,19 +79,7 @@ export default function StudentExamsPage() {
 
   const handleExamClick = (exam: Exam) => {
     setSelectedExam(exam);
-    
-    // Check if student has submitted this exam
-    const examAttempt = examAttempts.find(
-      (attempt) => attempt.examId === exam._id?.toString() && attempt.submittedAt
-    );
-    
-    if (examAttempt) {
-      // Already submitted, show action modal
-      setShowActionModal(true);
-    } else {
-      // Not submitted yet, show detail modal
-      setShowDetailModal(true);
-    }
+    setShowDetailModal(true);
   };
 
   const handleStartExam = () => {
@@ -105,26 +92,33 @@ export default function StudentExamsPage() {
   const handleRetakeExam = () => {
     if (selectedExam) {
       router.push(`/student/exams/${selectedExam._id}/take`);
-      setShowActionModal(false);
+      setShowDetailModal(false);
     }
   };
 
   const handleViewResult = () => {
     if (selectedExam) {
+      const examIdStr = selectedExam._id?.toString();
       const examAttempt = examAttempts.find(
-        (attempt) => attempt.examId === selectedExam._id?.toString() && attempt.submittedAt
+        (attempt) => {
+          const attemptExamIdStr = typeof attempt.examId === 'string' ? attempt.examId : attempt.examId?.toString();
+          return attemptExamIdStr === examIdStr && attempt.submittedAt;
+        }
       );
       if (examAttempt) {
         router.push(`/student/exams/${selectedExam._id}/review?attemptId=${examAttempt._id}`);
       }
-      setShowActionModal(false);
+      setShowDetailModal(false);
     }
   };
 
   const getExamStatus = (examId: string | undefined) => {
     if (!examId) return null;
     const attempt = examAttempts.find(
-      (a) => a.examId === examId && a.submittedAt
+      (a) => {
+        const attemptExamIdStr = typeof a.examId === 'string' ? a.examId : a.examId?.toString();
+        return attemptExamIdStr === examId && a.submittedAt;
+      }
     );
     return attempt ? { submitted: true, score: attempt.score, total: attempt.totalQuestions } : null;
   };
@@ -234,20 +228,50 @@ export default function StudentExamsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredExams.map((exam) => (
-              <div
-                key={exam._id?.toString() || ""}
-                onClick={() => handleExamClick(exam)}
-                className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
-              >
+            {filteredExams.map((exam) => {
+              const status = getExamStatus(exam._id?.toString());
+              const hasSubmitted = status !== null;
+              
+              return (
+                <div
+                  key={exam._id?.toString() || ""}
+                  onClick={() => handleExamClick(exam)}
+                  className="rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+                  style={{
+                    backgroundColor: hasSubmitted ? "#fffff5" : "white",
+                  }}
+                >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3
-                      className="text-lg font-bold mb-2"
-                      style={{ color: colors.darkBrown }}
-                    >
-                      {exam.name}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3
+                        className="text-lg font-bold flex-1"
+                        style={{ color: colors.darkBrown }}
+                      >
+                        {exam.name}
+                      </h3>
+                      {hasSubmitted && (
+                        <span
+                          className="px-2 py-1 rounded text-xs font-medium flex-shrink-0"
+                          style={{
+                            backgroundColor: colors.lightGreen,
+                            color: colors.darkBrown,
+                          }}
+                        >
+                          Đã làm
+                        </span>
+                      )}
+                      {status && status.score !== undefined && (
+                        <div
+                          className="px-3 py-1 rounded-lg font-bold text-white flex-shrink-0"
+                          style={{
+                            backgroundColor: status.score >= status.total * 0.7 ? "#10B981" : status.score >= status.total * 0.5 ? "#F59E0B" : "#DC2626",
+                          }}
+                        >
+                          {status.score}/{status.total}
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 mb-2">
                       <span
                         className="px-2 py-1 rounded text-xs font-medium"
@@ -294,18 +318,9 @@ export default function StudentExamsPage() {
                     Xem chi tiết →
                   </span>
                 </div>
-                {(() => {
-                  const status = getExamStatus(exam._id?.toString());
-                  return status ? (
-                    <div className="mt-2 pt-2 border-t" style={{ borderColor: colors.light }}>
-                      <span className="text-xs" style={{ color: colors.brown }}>
-                        Đã làm: {status.score}/{status.total} điểm
-                      </span>
-                    </div>
-                  ) : null;
-                })()}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -313,7 +328,8 @@ export default function StudentExamsPage() {
       {/* Detail Modal */}
       {showDetailModal && selectedExam && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.3)" }}
           onClick={() => setShowDetailModal(false)}
         >
           <div
@@ -423,104 +439,83 @@ export default function StudentExamsPage() {
                   </div>
                 </div>
               )}
+
+              {(() => {
+                const status = getExamStatus(selectedExam._id?.toString());
+                return status ? (
+                  <div>
+                    <div
+                      className="text-xs font-semibold uppercase tracking-wide mb-1"
+                      style={{ color: colors.brown }}
+                    >
+                      Kết quả đã làm
+                    </div>
+                    <div
+                      className="text-base font-medium"
+                      style={{ color: colors.darkBrown }}
+                    >
+                      Điểm: {status.score ?? 0}/{status.total} ({((status.score ?? 0) / status.total * 10).toFixed(1)}/10)
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
 
-            <div className="flex gap-4 justify-end">
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="px-5 py-2.5 rounded-lg font-medium transition-all hover:opacity-80"
-                style={{
-                  backgroundColor: colors.light,
-                  color: colors.darkBrown,
-                }}
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleStartExam}
-                className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
-                style={{
-                  backgroundColor: colors.brown,
-                }}
-              >
-                Bắt đầu
-              </button>
-            </div>
+            {(() => {
+              const status = getExamStatus(selectedExam._id?.toString());
+              const hasSubmitted = status !== null;
+
+              return (
+                <div className="flex gap-4 justify-end">
+                  <button
+                    onClick={() => setShowDetailModal(false)}
+                    className="px-5 py-2.5 rounded-lg font-medium transition-all hover:opacity-80"
+                    style={{
+                      backgroundColor: colors.light,
+                      color: colors.darkBrown,
+                    }}
+                  >
+                    Hủy
+                  </button>
+                  {hasSubmitted ? (
+                    <>
+                      <button
+                        onClick={handleViewResult}
+                        className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
+                        style={{
+                          backgroundColor: colors.mediumGreen,
+                        }}
+                      >
+                        Xem lại bài đã làm
+                      </button>
+                      <button
+                        onClick={handleRetakeExam}
+                        className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
+                        style={{
+                          backgroundColor: colors.brown,
+                        }}
+                      >
+                        Làm lại
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleStartExam}
+                      className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
+                      style={{
+                        backgroundColor: colors.brown,
+                      }}
+                    >
+                      Bắt đầu
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
 
-      {/* Action Modal (View Result / Retake) */}
-      {showActionModal && selectedExam && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => setShowActionModal(false)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6"
-            style={{
-              borderColor: colors.brown,
-              borderWidth: "2px",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6 pb-4 border-b"
-              style={{ borderColor: colors.light }}
-            >
-              <h2
-                className="text-2xl font-bold"
-                style={{ color: colors.darkBrown }}
-              >
-                {selectedExam.name}
-              </h2>
-              <button
-                onClick={() => setShowActionModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-                style={{ fontSize: "24px", lineHeight: "1" }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <p className="text-base mb-4" style={{ color: colors.brown }}>
-                Bạn đã làm đề này rồi. Bạn muốn làm gì?
-              </p>
-            </div>
-
-            <div className="flex gap-4 justify-end">
-              <button
-                onClick={() => setShowActionModal(false)}
-                className="px-5 py-2.5 rounded-lg font-medium transition-all hover:opacity-80"
-                style={{
-                  backgroundColor: colors.light,
-                  color: colors.darkBrown,
-                }}
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleViewResult}
-                className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
-                style={{
-                  backgroundColor: colors.mediumGreen,
-                }}
-              >
-                Xem lại bài làm
-              </button>
-              <button
-                onClick={handleRetakeExam}
-                className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
-                style={{
-                  backgroundColor: colors.brown,
-                }}
-              >
-                Làm lại
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
