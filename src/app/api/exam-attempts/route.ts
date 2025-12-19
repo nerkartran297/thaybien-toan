@@ -40,17 +40,77 @@ async function verifyStudent() {
   }
 }
 
+// Helper to verify teacher authentication
+async function verifyTeacher() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth-token')?.value;
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    const userId = payload.userId as string;
+
+    if (!userId) {
+      return null;
+    }
+
+    const db = await getDatabase();
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+
+    if (user && user.role === 'teacher') {
+      return { userId, user };
+    }
+
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
 // GET /api/exam-attempts - Get exam attempts (filtered by student or examId)
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const examId = searchParams.get('examId');
+    const role = searchParams.get('role');
+      const db = await getDatabase();
+
+    // Check if teacher is requesting all attempts for an exam
+    if (role === 'teacher' && examId) {
+      const auth = await verifyTeacher();
+      if (!auth) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      // Get all submitted attempts for this exam
+      const attempts = await db
+        .collection<ExamAttempt>('examAttempts')
+        .find({
+          examId: new ObjectId(examId),
+          submittedAt: { $exists: true, $ne: null },
+        })
+        .sort({ score: -1, submittedAt: -1 }) // Sort by score descending
+        .toArray();
+
+      // Serialize ObjectIds
+      const serialized = attempts.map((attempt) => ({
+        ...attempt,
+        _id: attempt._id?.toString(),
+        examId: attempt.examId?.toString(),
+        studentId: attempt.studentId?.toString(),
+      }));
+
+      return NextResponse.json(serialized);
+    }
+
+    // Default: student getting their own attempts
     const auth = await verifyStudent();
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { searchParams } = new URL(request.url);
-    const examId = searchParams.get('examId');
-    const db = await getDatabase();
 
     let query: any = { studentId: new ObjectId(auth.userId) };
     if (examId) {

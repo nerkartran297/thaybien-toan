@@ -401,6 +401,16 @@ export default function ExamsManagementPage() {
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button
+                          onClick={() => router.push(`/teacher/exams/${exam._id}/results`)}
+                          className="px-3 py-1 rounded text-sm font-medium transition-colors"
+                          style={{
+                            backgroundColor: colors.brown,
+                            color: "white",
+                          }}
+                        >
+                          Xem kết quả
+                        </button>
+                        <button
                           onClick={() => handleOpenShareModal(exam)}
                           className="px-3 py-1 rounded text-sm font-medium transition-colors"
                           style={{
