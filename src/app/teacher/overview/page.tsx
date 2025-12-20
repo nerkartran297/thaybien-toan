@@ -25,7 +25,6 @@ export default function TeacherOverviewPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showFacebook, setShowFacebook] = useState(false);
   const [editData, setEditData] = useState<Map<string, { studentNumber?: number; note?: string }>>(new Map());
   const [saving, setSaving] = useState(false);
 
@@ -242,19 +241,31 @@ export default function TeacherOverviewPage() {
     return startDate.getTime() === checkDate.getTime();
   };
 
-  // Check if date is enrollment end date
-  const isEnrollmentEndDate = (student: User, date: Date): boolean => {
-    const studentEnrollment = enrollments.find(
-      (e) => e.studentId.toString() === student._id?.toString()
-    );
-    if (!studentEnrollment) return false;
-
-    const endDate = new Date(studentEnrollment.endDate);
-    endDate.setHours(0, 0, 0, 0);
+  // Get attendance status for a student on a specific date
+  // Returns: 'present' | 'absent' | null (null = chưa điểm danh)
+  const getAttendanceStatus = (student: User, date: Date): 'present' | 'absent' | null => {
     const checkDate = new Date(date);
     checkDate.setHours(0, 0, 0, 0);
 
-    return endDate.getTime() === checkDate.getTime();
+    const attendanceForDate = attendanceRecords.find((att) => {
+      if (att.studentId.toString() !== student._id?.toString()) return false;
+      const attDate = new Date(att.sessionDate);
+      attDate.setHours(0, 0, 0, 0);
+      return attDate.getTime() === checkDate.getTime();
+    });
+
+    if (!attendanceForDate) {
+      return null; // Chưa điểm danh
+    }
+
+    // Check status
+    if (attendanceForDate.status === 'present' || attendanceForDate.status === 'makeup') {
+      return 'present'; // Đã đi học
+    } else if (attendanceForDate.status === 'absent') {
+      return 'absent'; // Vắng
+    }
+
+    return null; // Chưa điểm danh
   };
 
   // Get attendance progress for a student (completed / total)
@@ -444,16 +455,6 @@ export default function TeacherOverviewPage() {
                 year: "numeric",
               })}
             </div>
-            <button
-              onClick={() => setShowFacebook(!showFacebook)}
-              className="px-4 py-2 rounded-lg font-medium transition-all hover:shadow-md"
-              style={{
-                backgroundColor: showFacebook ? colors.mediumGreen : colors.light,
-                color: showFacebook ? "white" : colors.darkBrown,
-              }}
-            >
-              {showFacebook ? "Ẩn" : "Hiện"} tên FB
-            </button>
             {!isEditMode ? (
               <button
                 onClick={handleEnterEditMode}
@@ -521,30 +522,6 @@ export default function TeacherOverviewPage() {
                   >
                     Học viên
                   </th>
-                  {showFacebook && (
-                    <th
-                      className="sticky left-[230px] z-10 p-3 text-left font-semibold border-r border-b"
-                      style={{
-                        backgroundColor: colors.mediumGreen,
-                        color: "white",
-                        minWidth: "150px",
-                        width: "150px",
-                      }}
-                    >
-                      Facebook
-                    </th>
-                  )}
-                  <th
-                    className={`sticky ${showFacebook ? 'left-[380px]' : 'left-[230px]'} z-10 p-3 text-center font-semibold border-r border-b`}
-                    style={{
-                      backgroundColor: colors.mediumGreen,
-                      color: "white",
-                      minWidth: "100px",
-                      width: "100px",
-                    }}
-                  >
-                    Tiến độ
-                  </th>
                   {weekDates.map((date, index) => (
                     <th
                       key={index}
@@ -568,7 +545,7 @@ export default function TeacherOverviewPage() {
                 {sortedStudents.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={showFacebook ? 17 : 16}
+                      colSpan={15}
                       className="p-8 text-center"
                       style={{ color: colors.brown }}
                     >
@@ -666,82 +643,46 @@ export default function TeacherOverviewPage() {
                           </div>
                         </div>
                       </td>
-                      {/* Facebook Column */}
-                      {showFacebook && (
-                        <td
-                          className="sticky left-[230px] z-10 p-2 font-medium border-r border-b border-gray-200"
-                          style={{
-                            backgroundColor: "white",
-                            color: colors.darkBrown,
-                            minWidth: "150px",
-                            width: "150px",
-                          }}
-                        >
-                          <span className="truncate text-sm block">
-                            {student.facebookName || "-"}
-                          </span>
-                        </td>
-                      )}
-                      {/* Tiến độ Column */}
-                      <td
-                        className={`sticky ${showFacebook ? 'left-[380px]' : 'left-[230px]'} z-10 p-2 text-center font-medium border-r border-b border-gray-200`}
-                        style={{
-                          backgroundColor: "white",
-                          minWidth: "100px",
-                          width: "100px",
-                        }}
-                      >
-                        {(() => {
-                          const progress = getAttendanceProgress(student);
-                          return (
-                            <div
-                              className="text-sm font-semibold"
-                              style={{ color: colors.darkBrown }}
-                            >
-                              {progress.completed} / {progress.total}
-                            </div>
-                          );
-                        })()}
-                      </td>
                       {weekDates.map((date, dateIndex) => {
-                        const attendanceInfo = getAttendanceInfo(student, date);
+                        const attendanceStatus = getAttendanceStatus(student, date);
+                        const isStartDate = isEnrollmentStartDate(student, date);
                         const isScheduled = isScheduledClassDay(student, date);
-                        const isStartDate = isEnrollmentStartDate(
-                          student,
-                          date
-                        );
-                        const isEndDate = isEnrollmentEndDate(student, date);
 
-                        let backgroundColor = "white";
+                        let backgroundColor = "white"; // Trắng mặc định (không có lớp)
                         let borderColor = "#E5E7EB";
                         let textColor = colors.darkBrown;
 
-                        // Priority: Start/End date (red) > Attendance > Scheduled class
-                        if (isStartDate || isEndDate) {
-                          // Enrollment start/end date - red
-                          backgroundColor = "#FEE2E2";
+                        // Priority: Start date (với attendance status) > Attendance status > Scheduled class (chưa điểm danh)
+                        if (isStartDate) {
+                          // Ngày bắt đầu: màu theo attendance status, nhưng luôn giữ border đỏ và text "Bắt đầu"
                           borderColor = "#DC2626";
                           textColor = "#DC2626";
-                        } else if (attendanceInfo) {
-                          if (attendanceInfo.hasAttendance) {
-                            if (attendanceInfo.isMakeup) {
-                              // Makeup class - light blue (học bù)
-                              backgroundColor = "#DBEAFE";
-                              borderColor = "#3B82F6";
-                            } else if (attendanceInfo.isRegular) {
-                              // Regular class attended - green (đã đi học)
-                              backgroundColor = colors.lightGreen;
-                              borderColor = colors.mediumGreen;
-                            } else {
-                              // Other attendance (not regular, not makeup)
-                              backgroundColor = colors.lightGreen;
-                              borderColor = colors.mediumGreen;
-                            }
+                          if (attendanceStatus === 'present') {
+                            // Đã đi học - xanh lá
+                            backgroundColor = colors.lightGreen;
+                          } else if (attendanceStatus === 'absent') {
+                            // Vắng - đỏ
+                            backgroundColor = "#FEE2E2";
+                          } else {
+                            // Chưa điểm danh - đỏ nhạt
+                            backgroundColor = "#FEE2E2";
                           }
+                        } else if (attendanceStatus === 'present') {
+                          // Đã đi học - xanh
+                          backgroundColor = colors.lightGreen;
+                          borderColor = colors.mediumGreen;
+                        } else if (attendanceStatus === 'absent') {
+                          // Vắng - đỏ
+                          backgroundColor = "#FEE2E2";
+                          borderColor = "#DC2626";
                         } else if (isScheduled) {
-                          // Highlight scheduled class days (only within enrollment period) with yellow
-                          backgroundColor = "#FEF3C7";
-                          borderColor = "#F59E0B";
+                          // Có lớp nhưng chưa điểm danh - xám
+                          backgroundColor = "#E5E7EB";
+                          borderColor = "#9CA3AF";
+                        } else {
+                          // Không có lớp - trắng
+                          backgroundColor = "white";
+                          borderColor = "#E5E7EB";
                         }
 
                         return (
@@ -760,19 +701,6 @@ export default function TeacherOverviewPage() {
                               <div className="text-[10px] font-bold">
                                 Bắt đầu
                               </div>
-                            )}
-                            {isEndDate && (
-                              <div className="text-[10px] font-bold">
-                                Kết thúc
-                              </div>
-                            )}
-                            {attendanceInfo?.sessionNumber && (
-                              <div className="text-xs font-bold">
-                                {attendanceInfo.sessionNumber}
-                              </div>
-                            )}
-                            {attendanceInfo?.isMakeup && (
-                              <div className="text-[9px] opacity-75">Bù</div>
                             )}
                           </td>
                         );
@@ -797,47 +725,43 @@ export default function TeacherOverviewPage() {
               }}
             />
             <span className="text-sm" style={{ color: colors.darkBrown }}>
-              Ngày bắt đầu / Kết thúc khóa học
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border flex items-center justify-center"
-              style={{
-                backgroundColor: colors.lightGreen,
-                borderColor: colors.mediumGreen,
-              }}
-            >
-              <span className="text-xs font-bold">1</span>
-            </div>
-            <span className="text-sm" style={{ color: colors.darkBrown }}>
-              Đã đi học (số = buổi thứ mấy)
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border flex items-center justify-center"
-              style={{
-                backgroundColor: "#DBEAFE",
-                borderColor: "#3B82F6",
-              }}
-            >
-              <span className="text-xs font-bold">1</span>
-            </div>
-            <span className="text-sm" style={{ color: colors.darkBrown }}>
-              Học bù (số = buổi thứ mấy)
+              Ngày bắt đầu khóa học
             </span>
           </div>
           <div className="flex items-center gap-2">
             <div
               className="w-6 h-6 rounded border"
               style={{
-                backgroundColor: "#FEF3C7",
-                borderColor: "#F59E0B",
+                backgroundColor: colors.lightGreen,
+                borderColor: colors.mediumGreen,
               }}
             />
             <span className="text-sm" style={{ color: colors.darkBrown }}>
-              Buổi học cố định (chưa điểm danh)
+              Đã đi học
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded border"
+              style={{
+                backgroundColor: "#FEE2E2",
+                borderColor: "#DC2626",
+              }}
+            />
+            <span className="text-sm" style={{ color: colors.darkBrown }}>
+              Vắng
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded border"
+              style={{
+                backgroundColor: "#E5E7EB",
+                borderColor: "#9CA3AF",
+              }}
+            />
+            <span className="text-sm" style={{ color: colors.darkBrown }}>
+              Có lớp nhưng chưa điểm danh
             </span>
           </div>
         </div>

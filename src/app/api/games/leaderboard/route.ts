@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'all'; // all, week, month, quarter
     const scope = searchParams.get('scope') || 'class'; // class, grade, all (only for teachers)
+    const grade = searchParams.get('grade') || null; // Specific grade filter (for teachers)
+    const group = searchParams.get('group') || null; // Specific group/class filter (for teachers)
 
     // Get student profile for filtering and getting user's own stats
     const studentProfile = await db.collection('student_profiles').findOne({
@@ -103,30 +105,55 @@ export async function GET(request: NextRequest) {
         }
       }
     } else if (user.role === 'teacher') {
-      // Teachers can choose scope - but they need to select a specific class/grade
-      // For now, if scope is 'all', show all students
-      // If scope is 'class' or 'grade', we'd need additional params to specify which one
-      // For simplicity, if scope is 'all', no filter; otherwise use teacher's profile if exists
-      if (scope !== 'all') {
-        if (studentProfile) {
-          if (scope === 'class' && studentProfile.group) {
-            profileQuery.group = studentProfile.group;
-          } else if (scope === 'grade' && studentProfile.grade) {
-            profileQuery.grade = studentProfile.grade;
+      // Teachers can choose scope with specific grade/group filters
+      if (scope === 'all') {
+        // No filter - show all students
+        profileQuery = {};
+      } else if (scope === 'grade') {
+        // Filter by grade - use provided grade
+        if (grade) {
+          // Normalize grade - trim and try to match both string and number
+          const normalizedGrade = grade.trim();
+          const gradeNum = parseInt(normalizedGrade, 10);
+          
+          // Try to match both string and number formats
+          if (!isNaN(gradeNum)) {
+            profileQuery.$or = [
+              { grade: normalizedGrade },
+              { grade: gradeNum },
+              { grade: gradeNum.toString() },
+            ];
+          } else {
+            profileQuery.grade = normalizedGrade;
           }
+        } else {
+          // If no grade specified, show all
+          profileQuery = {};
         }
+      } else if (scope === 'class') {
+        // Filter by class - use provided group
+        if (group) {
+          profileQuery.group = group;
+        } else {
+          // If no group specified, show all
+          profileQuery = {};
+        }
+        // Note: When filtering by class, we don't filter by grade
+        // because a class (group) already implies a specific grade
       }
-      // If scope is 'all', no filter is applied (profileQuery stays empty)
     }
 
     // Get date range based on period
     const { start, end } = getDateRange(period);
 
     // Get all student profiles matching the query
+    // Debug: log the query
+    console.log('Leaderboard query:', JSON.stringify(profileQuery, null, 2));
     let profiles = await db
       .collection('student_profiles')
       .find(profileQuery)
       .toArray();
+    console.log(`Found ${profiles.length} profiles matching query`);
 
     // If period is not 'all', filter by monthly_scores
     if (start && period !== 'all') {

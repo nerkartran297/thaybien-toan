@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { QuizSession } from "@/models/QuizSession";
@@ -200,31 +201,56 @@ export default function TeacherQuizControlPage() {
                       />
                     </div>
                   )}
-                  <div className="space-y-2">
-                    <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
-                      <strong>A:</strong> {currentQuestion.options.A}
-                    </div>
-                    <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
-                      <strong>B:</strong> {currentQuestion.options.B}
-                    </div>
-                    <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
-                      <strong>C:</strong> {currentQuestion.options.C}
-                    </div>
-                    <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
-                      <strong>D:</strong> {currentQuestion.options.D}
-                    </div>
-                  </div>
-                  <div className="mt-4 p-3 bg-[#DDE5B6] rounded">
-                    <strong>Đáp án đúng:</strong>{" "}
-                    <span className="text-green-700 font-bold">
-                      {currentQuestion.correctAnswer}
-                    </span>
-                  </div>
-                  {currentQuestion.explanation && (
-                    <div className="mt-2 p-3 bg-[#F0EAD2] rounded">
-                      <strong>Giải thích:</strong> {currentQuestion.explanation}
+                  
+                  {/* Only show options when question is active (for students to see) */}
+                  {session.isQuestionActive && (
+                    <div className="space-y-2">
+                      <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
+                        <strong>A:</strong> {currentQuestion.options.A}
+                      </div>
+                      <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
+                        <strong>B:</strong> {currentQuestion.options.B}
+                      </div>
+                      <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
+                        <strong>C:</strong> {currentQuestion.options.C}
+                      </div>
+                      <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
+                        <strong>D:</strong> {currentQuestion.options.D}
+                      </div>
                     </div>
                   )}
+                  
+                  {/* Only show correct answer and explanation after question has ended (when showing stats) */}
+                  {stats && !session.isQuestionActive && (
+                    <>
+                      <div className="space-y-2">
+                        <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
+                          <strong>A:</strong> {currentQuestion.options.A}
+                        </div>
+                        <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
+                          <strong>B:</strong> {currentQuestion.options.B}
+                        </div>
+                        <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
+                          <strong>C:</strong> {currentQuestion.options.C}
+                        </div>
+                        <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
+                          <strong>D:</strong> {currentQuestion.options.D}
+                        </div>
+                      </div>
+                      <div className="mt-4 p-3 bg-[#DDE5B6] rounded">
+                        <strong>Đáp án đúng:</strong>{" "}
+                        <span className="text-green-700 font-bold">
+                          {currentQuestion.correctAnswer}
+                        </span>
+                      </div>
+                      {currentQuestion.explanation && (
+                        <div className="mt-2 p-3 bg-[#F0EAD2] rounded">
+                          <strong>Giải thích:</strong> {currentQuestion.explanation}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
                   <div className="mt-2 text-sm text-[#6C584C]">
                     Thời gian: {currentQuestion.timeLimit} giây
                   </div>

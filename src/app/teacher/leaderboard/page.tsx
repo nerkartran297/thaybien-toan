@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -19,8 +19,11 @@ export default function TeacherLeaderboardPage() {
   const router = useRouter();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [period, setPeriod] = useState<"all" | "week" | "month" | "quarter">("all");
-  const [scope, setScope] = useState<"class" | "grade" | "all">("all");
+  const [filterValue, setFilterValue] = useState<string>("all"); // Format: "all", "class:10A1", "grade:10"
+  const [grades, setGrades] = useState<string[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtersLoading, setFiltersLoading] = useState(true);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "teacher")) {
@@ -30,16 +33,51 @@ export default function TeacherLeaderboardPage() {
 
   useEffect(() => {
     if (user && user.role === "teacher") {
+      fetchFilters();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && user.role === "teacher" && !filtersLoading) {
       fetchLeaderboard();
     }
-  }, [user, period, scope]);
+  }, [user, period, filterValue, filtersLoading]);
+
+  const fetchFilters = async () => {
+    try {
+      setFiltersLoading(true);
+      const response = await fetch("/api/games/leaderboard/filters");
+      if (response.ok) {
+        const data = await response.json();
+        setGrades(data.grades || []);
+        setGroups(data.groups || []);
+      }
+    } catch (error) {
+      console.error("Error fetching filters:", error);
+    } finally {
+      setFiltersLoading(false);
+    }
+  };
 
   const fetchLeaderboard = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/games/leaderboard?period=${period}&scope=${scope}`
-      );
+      const params = new URLSearchParams({ period });
+      
+      // Parse filterValue: "all", "class:10A1", "grade:10"
+      if (filterValue === "all") {
+        params.append("scope", "all");
+      } else if (filterValue.startsWith("class:")) {
+        const group = filterValue.replace("class:", "");
+        params.append("scope", "class");
+        params.append("group", group);
+      } else if (filterValue.startsWith("grade:")) {
+        const grade = filterValue.replace("grade:", "");
+        params.append("scope", "grade");
+        params.append("grade", grade);
+      }
+      
+      const response = await fetch(`/api/games/leaderboard?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setLeaderboard(data.leaderboard || []);
@@ -80,7 +118,26 @@ export default function TeacherLeaderboardPage() {
     }
   };
 
-  if (loading || authLoading) {
+  // Generate filter options
+  const filterOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string }> = [
+      { value: "all", label: "Tất Cả Học Sinh" },
+    ];
+    
+    // Add all groups
+    groups.forEach((group) => {
+      options.push({ value: `class:${group}`, label: `Lớp ${group}` });
+    });
+    
+    // Add all grades
+    grades.forEach((grade) => {
+      options.push({ value: `grade:${grade}`, label: `Khối ${grade}` });
+    });
+    
+    return options;
+  }, [groups, grades]);
+
+  if (authLoading || filtersLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFFBF7]">
         <div className="text-[#2c3e50]">Đang tải...</div>
@@ -120,18 +177,18 @@ export default function TeacherLeaderboardPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[#2c3e50] mb-2">
-                Phạm Vi
+                Lọc theo học sinh
               </label>
               <select
-                value={scope}
-                onChange={(e) =>
-                  setScope(e.target.value as "class" | "grade" | "all")
-                }
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
                 className="w-full px-4 py-2 border border-[#ADC178] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A98467]"
               >
-                <option value="all">Tất Cả Học Sinh</option>
-                <option value="grade">Cùng Khối</option>
-                <option value="class">Cùng Lớp</option>
+                {filterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -145,7 +202,11 @@ export default function TeacherLeaderboardPage() {
             </h2>
           </div>
 
-          {leaderboard.length === 0 ? (
+          {loading ? (
+            <div className="text-center text-[#6C584C] py-8">
+              <p className="text-lg">Đang tải...</p>
+            </div>
+          ) : leaderboard.length === 0 ? (
             <div className="text-center text-[#6C584C] py-8">
               <p className="text-lg">Chưa có dữ liệu</p>
             </div>

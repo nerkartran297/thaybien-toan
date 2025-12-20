@@ -1,12 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { QuizSession } from "@/models/QuizSession";
 import { Quiz, AnswerOption } from "@/models/Quiz";
 import Link from "next/link";
+import Image from "next/image";
+
+interface QuizStats {
+  questionIndex: number;
+  totalAnswers: number;
+  counts: {
+    A: number;
+    B: number;
+    C: number;
+    D: number;
+  };
+  percentages: {
+    A: number;
+    B: number;
+    C: number;
+    D: number;
+  };
+  correctAnswer: AnswerOption | null;
+}
 
 export default function StudentQuizPage() {
   const { user, loading: authLoading } = useAuth();
@@ -16,11 +35,73 @@ export default function StudentQuizPage() {
 
   const [session, setSession] = useState<QuizSession | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [selectedAnswer, setSelectedAnswer] = useState<AnswerOption | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<AnswerOption | null>(
+    null
+  );
   const [hasAnswered, setHasAnswered] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<QuizStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const checkIfAnswered = useCallback(async () => {
+    if (!session || !user) return;
+
+    try {
+      // Check if student has answered by fetching their answer for current question
+      const response = await fetch(
+        `/api/games/rooms/${roomId}/quiz/answer/check?questionIndex=${session.currentQuestionIndex}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.hasAnswered) {
+          setHasAnswered(true);
+          setSelectedAnswer(data.answer);
+        }
+      }
+    } catch (error) {
+      // Silently fail - not critical
+      console.error("Error checking if answered:", error);
+    }
+  }, [session, user, roomId]);
+
+  const fetchSession = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/games/rooms/${roomId}/quiz/session`);
+      if (response.ok) {
+        const data = await response.json();
+        setSession((prevSession) => {
+          // Reset answer state when question changes
+          if (data.currentQuestionIndex !== prevSession?.currentQuestionIndex) {
+            setSelectedAnswer(null);
+            setHasAnswered(false);
+            setStats(null);
+          }
+          return data;
+        });
+        // Check if student has already answered current question
+        if (data.isQuestionActive && data.questionStartTime) {
+          checkIfAnswered();
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching session:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [roomId, checkIfAnswered]);
+
+  const fetchQuiz = useCallback(async () => {
+    if (!session?.quizId) return;
+    try {
+      const response = await fetch(`/api/quizzes/${session.quizId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setQuiz(data);
+      }
+    } catch (error) {
+      console.error("Error fetching quiz:", error);
+    }
+  }, [session?.quizId]);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "student")) {
@@ -32,13 +113,13 @@ export default function StudentQuizPage() {
     if (user && user.role === "student") {
       fetchSession();
     }
-  }, [user, roomId]);
+  }, [user, roomId, fetchSession]);
 
   useEffect(() => {
     if (session?.quizId) {
       fetchQuiz();
     }
-  }, [session?.quizId]);
+  }, [session?.quizId, fetchQuiz]);
 
   // Polling: Fetch session every 2 seconds
   useEffect(() => {
@@ -58,11 +139,16 @@ export default function StudentQuizPage() {
     }, 2000);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.isQuestionActive, session?.isCompleted, hasAnswered]);
 
   // Timer countdown
   useEffect(() => {
-    if (!session?.isQuestionActive || !session.questionStartTime || hasAnswered) {
+    if (
+      !session?.isQuestionActive ||
+      !session.questionStartTime ||
+      hasAnswered
+    ) {
       setTimeLeft(null);
       return;
     }
@@ -82,44 +168,13 @@ export default function StudentQuizPage() {
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [session?.isQuestionActive, session?.questionStartTime, hasAnswered, quiz]);
-
-  const fetchSession = async () => {
-    try {
-      const response = await fetch(`/api/games/rooms/${roomId}/quiz/session`);
-      if (response.ok) {
-        const data = await response.json();
-        setSession(data);
-        // Reset answer state when question changes
-        if (data.currentQuestionIndex !== session?.currentQuestionIndex) {
-          setSelectedAnswer(null);
-          setHasAnswered(false);
-          setStats(null);
-        }
-        // Check if student has already answered current question
-        if (data.isQuestionActive && data.questionStartTime) {
-          checkIfAnswered();
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching session:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchQuiz = async () => {
-    if (!session?.quizId) return;
-    try {
-      const response = await fetch(`/api/quizzes/${session.quizId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setQuiz(data);
-      }
-    } catch (error) {
-      console.error("Error fetching quiz:", error);
-    }
-  };
+  }, [
+    session?.isQuestionActive,
+    session?.questionStartTime,
+    session?.currentQuestionIndex,
+    hasAnswered,
+    quiz,
+  ]);
 
   const fetchStats = async () => {
     try {
@@ -142,27 +197,6 @@ export default function StudentQuizPage() {
     if (currentQuestion) {
       const remaining = currentQuestion.timeLimit - elapsed;
       setTimeLeft(Math.max(0, remaining));
-    }
-  };
-
-  const checkIfAnswered = async () => {
-    if (!session || !user) return;
-    
-    try {
-      // Check if student has answered by fetching their answer for current question
-      const response = await fetch(
-        `/api/games/rooms/${roomId}/quiz/answer/check?questionIndex=${session.currentQuestionIndex}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data.hasAnswered) {
-          setHasAnswered(true);
-          setSelectedAnswer(data.answer);
-        }
-      }
-    } catch (error) {
-      // Silently fail - not critical
-      console.error("Error checking if answered:", error);
     }
   };
 
@@ -262,9 +296,7 @@ export default function StudentQuizPage() {
                     {timeLeft}s
                   </div>
                   {timeLeft === 0 && (
-                    <p className="text-sm text-red-600 mt-2">
-                      Hết thời gian!
-                    </p>
+                    <p className="text-sm text-red-600 mt-2">Hết thời gian!</p>
                   )}
                 </div>
               </div>
@@ -281,21 +313,27 @@ export default function StudentQuizPage() {
                     {currentQuestion.question}
                   </p>
                   {currentQuestion.imageUrl && (
-                    <div className="mt-3">
-                      <img
+                    <div
+                      className="mt-3 relative w-full"
+                      style={{ minHeight: "200px" }}
+                    >
+                      <Image
                         src={currentQuestion.imageUrl}
                         alt="Câu hỏi"
-                        className="max-w-full h-auto rounded-lg border border-[#ADC178]"
+                        fill
+                        className="object-contain rounded-lg border border-[#ADC178]"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 800px"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
                     </div>
                   )}
                   <div className="space-y-2">
-                    {(['A', 'B', 'C', 'D'] as AnswerOption[]).map((option) => {
+                    {(["A", "B", "C", "D"] as AnswerOption[]).map((option) => {
                       const isSelected = selectedAnswer === option;
-                      const isDisabled = hasAnswered || !session.isQuestionActive;
+                      const isDisabled =
+                        hasAnswered || !session.isQuestionActive;
                       const isCorrect = stats?.correctAnswer === option;
                       const showResults = stats && !session.isQuestionActive;
 
@@ -318,7 +356,8 @@ export default function StudentQuizPage() {
                               : ""
                           }`}
                         >
-                          <strong>{option}:</strong> {currentQuestion.options[option]}
+                          <strong>{option}:</strong>{" "}
+                          {currentQuestion.options[option]}
                           {showResults && isCorrect && (
                             <span className="ml-2 text-green-700">✓ Đúng</span>
                           )}
@@ -356,7 +395,7 @@ export default function StudentQuizPage() {
                     Tổng số câu trả lời: {stats.totalAnswers}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    {(['A', 'B', 'C', 'D'] as AnswerOption[]).map((option) => {
+                    {(["A", "B", "C", "D"] as AnswerOption[]).map((option) => {
                       const isCorrect = stats.correctAnswer === option;
                       return (
                         <div
@@ -392,4 +431,3 @@ export default function StudentQuizPage() {
     </div>
   );
 }
-

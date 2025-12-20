@@ -29,7 +29,7 @@ export default function Navigation() {
         </Link>
       </div>
       <div className="flex items-center space-x-4">
-        <div className="hidden lg:flex space-x-8 justify-center items-center">
+        <div className="hidden lg:flex space-x-4 xl:space-x-6 justify-center items-center">
           {/* Only show these menus when not logged in as teacher */}
           {!user || user.role !== "teacher" ? (
             <>
@@ -148,82 +148,62 @@ export default function Navigation() {
 
           {/* Teacher menu when logged in */}
           {user && user.role === "teacher" && (
-            <div className="relative group">
-              <button className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50] flex items-center">
-                Quản lý
-                <svg
-                  className="ml-1 w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-              <div className="absolute top-full left-0 mt-2 w-64 bg-[#EFEBDF] border border-[#FACE84] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                <div className="py-2">
-                  <Link
-                    href="/teacher/calendar"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Lịch dạy
-                  </Link>
-                  <Link
-                    href="/teacher/overview"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Tiến độ học viên
-                  </Link>
-                  <Link
-                    href="/teacher/students"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Danh sách học viên
-                  </Link>
-                  <Link
-                    href="/teacher/classes"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Quản lý lớp học
-                  </Link>
-                  <Link
-                    href="/teacher/documents"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Quản lý tài liệu
-                  </Link>
-                  <Link
-                    href="/teacher/exams"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Quản lý đề
-                  </Link>
-                  <Link
-                    href="/teacher/quizzes"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Quản lý Quiz
-                  </Link>
-                  <Link
-                    href="/teacher/games"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Hoạt động
-                  </Link>
-                  <Link
-                    href="/teacher/leaderboard"
-                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
-                  >
-                    Bảng Xếp Hạng
-                  </Link>
-                </div>
-              </div>
-            </div>
+            <>
+              <Link
+                href="/teacher/calendar"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Lịch dạy
+              </Link>
+              <Link
+                href="/teacher/overview"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Tiến độ học viên
+              </Link>
+              <Link
+                href="/teacher/students"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Học viên
+              </Link>
+              <Link
+                href="/teacher/classes"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Lớp học
+              </Link>
+              <Link
+                href="/teacher/documents"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Tài liệu
+              </Link>
+              <Link
+                href="/teacher/exams"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Đề thi
+              </Link>
+              <Link
+                href="/teacher/quizzes"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Quiz
+              </Link>
+              <Link
+                href="/teacher/games"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Hoạt động
+              </Link>
+              <Link
+                href="/teacher/leaderboard"
+                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+              >
+                Bảng Xếp Hạng
+              </Link>
+            </>
           )}
 
           {/* User info / Login */}

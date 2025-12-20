@@ -6,8 +6,7 @@ import { StudentEnrollment } from "@/models/StudentEnrollment";
 import { User } from "@/models/User";
 import { Attendance, CreateAttendanceData } from "@/models/Attendance";
 import { useAuth } from "@/contexts/AuthContext";
-import { showConfirm } from "@/lib/confirm";
-import { showError, showSuccess } from "@/lib/toast";
+import { showError } from "@/lib/toast";
 
 // Color palette
 const colors = {
@@ -803,8 +802,9 @@ export default function WeekCalendar({
                               today.setHours(0, 0, 0, 0);
                               const classDate = new Date(date);
                               classDate.setHours(0, 0, 0, 0);
-                              const isTodayOrPast = classDate.getTime() <= today.getTime();
-                              
+                              const isTodayOrPast =
+                                classDate.getTime() <= today.getTime();
+
                               if (isTodayOrPast || isCancelledOnDate) {
                                 handleClassClick(cls, date, "attendance");
                               } else {
@@ -845,7 +845,7 @@ export default function WeekCalendar({
                                     ? "opacity-0 absolute pointer-events-none"
                                     : "opacity-100"
                                 }`}
-                                style={{ 
+                                style={{
                                   color: "inherit",
                                   wordBreak: "break-word",
                                   overflowWrap: "break-word",
@@ -914,11 +914,25 @@ export default function WeekCalendar({
 
                             {role === "teacher" && (
                               <div className="text-xs space-y-1 px-1">
-                                <div className="break-words" style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>{studentCountForDate} học sinh</div>
+                                <div
+                                  className="break-words"
+                                  style={{
+                                    wordBreak: "break-word",
+                                    overflowWrap: "break-word",
+                                  }}
+                                >
+                                  {studentCountForDate} học sinh
+                                </div>
                                 {role === "teacher" &&
                                   (absenceCountForDate > 0 ||
                                     makeupCountForDate > 0) && (
-                                    <div className="text-[10px] opacity-75 break-words" style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
+                                    <div
+                                      className="text-[10px] opacity-75 break-words"
+                                      style={{
+                                        wordBreak: "break-word",
+                                        overflowWrap: "break-word",
+                                      }}
+                                    >
                                       {absenceCountForDate > 0 && (
                                         <span>
                                           Vắng: {absenceCountForDate}{" "}
@@ -947,17 +961,14 @@ export default function WeekCalendar({
       <div className="block md:hidden overflow-x-auto -mx-8 px-4">
         <div
           className="border-2"
-          style={{ 
+          style={{
             borderColor: colors.brown,
             minWidth: "max-content",
             width: "max-content",
           }}
         >
           {/* Header row with days */}
-          <div
-            className="flex"
-            style={{ backgroundColor: colors.lightGreen }}
-          >
+          <div className="flex" style={{ backgroundColor: colors.lightGreen }}>
             {/* Frozen time column header */}
             <div
               className="sticky left-0 z-20 p-2 font-bold text-center border-r-2 border-b-2 flex justify-center items-center flex-shrink-0"
@@ -1314,8 +1325,9 @@ export default function WeekCalendar({
                               today.setHours(0, 0, 0, 0);
                               const classDate = new Date(date);
                               classDate.setHours(0, 0, 0, 0);
-                              const isTodayOrPast = classDate.getTime() <= today.getTime();
-                              
+                              const isTodayOrPast =
+                                classDate.getTime() <= today.getTime();
+
                               if (isTodayOrPast || isCancelledOnDate) {
                                 handleClassClick(cls, date, "attendance");
                               } else {
@@ -1356,7 +1368,7 @@ export default function WeekCalendar({
                                     ? "opacity-0 absolute pointer-events-none"
                                     : "opacity-100"
                                 }`}
-                                style={{ 
+                                style={{
                                   color: "inherit",
                                   wordBreak: "break-word",
                                   overflowWrap: "break-word",
@@ -1425,11 +1437,25 @@ export default function WeekCalendar({
 
                             {role === "teacher" && (
                               <div className="text-xs space-y-0.5 px-0.5">
-                                <div className="break-words" style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>{studentCountForDate} học sinh</div>
+                                <div
+                                  className="break-words"
+                                  style={{
+                                    wordBreak: "break-word",
+                                    overflowWrap: "break-word",
+                                  }}
+                                >
+                                  {studentCountForDate} học sinh
+                                </div>
                                 {role === "teacher" &&
                                   (absenceCountForDate > 0 ||
                                     makeupCountForDate > 0) && (
-                                    <div className="text-[9px] opacity-75 break-words" style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
+                                    <div
+                                      className="text-[9px] opacity-75 break-words"
+                                      style={{
+                                        wordBreak: "break-word",
+                                        overflowWrap: "break-word",
+                                      }}
+                                    >
                                       {absenceCountForDate > 0 && (
                                         <span>
                                           Vắng: {absenceCountForDate}{" "}
@@ -1999,11 +2025,11 @@ function ClassActionModal({
       onClick={onClose}
     >
       <div
-          className={`bg-white rounded-xl shadow-2xl transition-all transform ${
-            (type === "attendance" || type === "edit") && role === "teacher"
-              ? "max-w-6xl w-full mx-4 h-[90vh] flex flex-col"
-              : "max-w-lg w-full mx-4 p-6"
-          }`}
+        className={`bg-white rounded-xl shadow-2xl transition-all transform ${
+          (type === "attendance" || type === "edit") && role === "teacher"
+            ? "max-w-6xl w-full mx-4 h-[90vh] flex flex-col"
+            : "max-w-lg w-full mx-4 p-6"
+        }`}
         style={{
           borderColor: colors.brown,
           borderWidth: "2px",
@@ -2646,7 +2672,6 @@ function ClassActionModal({
             />
           </div>
         )}
-
 
         {/* Confirmation Modal for Attendance */}
         {confirmAttendance && (
