@@ -331,6 +331,38 @@ export default function Navigation() {
                         Luyện đề
                       </Link>
                     )}
+                    {examInProgress ? (
+                      <span
+                        className="block text-lg font-semibold text-gray-400 cursor-not-allowed"
+                        title="Đang làm bài thi, không thể chuyển trang"
+                      >
+                        Hoạt động
+                      </span>
+                    ) : (
+                      <Link
+                        href="/student/games"
+                        className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Hoạt động
+                      </Link>
+                    )}
+                    {examInProgress ? (
+                      <span
+                        className="block text-lg font-semibold text-gray-400 cursor-not-allowed"
+                        title="Đang làm bài thi, không thể chuyển trang"
+                      >
+                        Bảng Xếp Hạng
+                      </span>
+                    ) : (
+                      <Link
+                        href="/student/leaderboard"
+                        className="block text-lg font-semibold text-[#2c3e50] hover:text-[#D4A047] transition-colors"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Bảng Xếp Hạng
+                      </Link>
+                    )}
                   </>
                 )}
                 {examInProgress ? (
@@ -368,37 +400,8 @@ export default function Navigation() {
               </>
             ) : null}
 
-            {/* Giáo viên / Quản lý */}
-            {!user || user.role !== "teacher" ? (
-              <div>
-                <div className="text-lg font-semibold text-[#2c3e50] mb-3">
-                  Giáo viên
-                </div>
-                <div className="pl-4 space-y-1">
-                  <Link
-                    href="/teacher/dashboard"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Bảng điều khiển
-                  </Link>
-                  <Link
-                    href="/teacher/attendance"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Điểm danh học viên
-                  </Link>
-                  <Link
-                    href="/teacher/classes"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Quản lý lớp học
-                  </Link>
-                </div>
-              </div>
-            ) : (
+            {/* Teacher menu when logged in */}
+            {user && user.role === "teacher" && (
               <div>
                 <div className="text-lg font-semibold text-[#2c3e50] mb-3">
                   Quản lý
@@ -406,59 +409,66 @@ export default function Navigation() {
                 <div className="pl-4 space-y-1">
                   <Link
                     href="/teacher/calendar"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Lịch dạy
                   </Link>
                   <Link
                     href="/teacher/overview"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Tiến độ học viên
                   </Link>
                   <Link
                     href="/teacher/students"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Danh sách học viên
                   </Link>
                   <Link
                     href="/teacher/classes"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Quản lý lớp học
                   </Link>
                   <Link
                     href="/teacher/documents"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Quản lý tài liệu
                   </Link>
                   <Link
                     href="/teacher/exams"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Quản lý đề
                   </Link>
                   <Link
                     href="/teacher/quizzes"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Quản lý Quiz
                   </Link>
                   <Link
                     href="/teacher/games"
-                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Hoạt động
+                  </Link>
+                  <Link
+                    href="/teacher/leaderboard"
+                    className="block text-sm text-[#654321] hover:text-[#D4A047] transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Bảng Xếp Hạng
                   </Link>
                 </div>
               </div>
