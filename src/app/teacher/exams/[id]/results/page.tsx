@@ -217,13 +217,13 @@ export default function ExamResultsPage() {
           )}
         </div>
 
-        <div className="flex gap-6 h-[calc(100vh-250px)]">
+        <div className="flex gap-6">
           {/* Left Column - Results Table */}
           <div
-            className="w-2/3 bg-white rounded-lg shadow-lg flex flex-col"
+            className="w-2/3 bg-white rounded-lg shadow-lg"
             style={{ borderColor: colors.brown, borderWidth: "2px" }}
           >
-            <div className="p-6 flex-shrink-0 border-b" style={{ borderColor: colors.light }}>
+            <div className="p-6 border-b" style={{ borderColor: colors.light }}>
               <div className="flex items-center justify-between mb-4">
                 <h2
                   className="text-xl font-bold"
@@ -263,7 +263,7 @@ export default function ExamResultsPage() {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div>
               <table className="w-full">
                 <thead className="sticky top-0 bg-white border-b" style={{ borderColor: colors.light }}>
                   <tr>
@@ -366,17 +366,20 @@ export default function ExamResultsPage() {
 
           {/* Right Column - Score Distribution Chart */}
           <div
-            className="w-1/3 bg-white rounded-lg shadow-lg p-6"
+            className="w-1/3 bg-white rounded-lg shadow-lg"
             style={{ borderColor: colors.brown, borderWidth: "2px" }}
           >
-            <h2
-              className="text-xl font-bold mb-6"
-              style={{ color: colors.darkBrown }}
-            >
-              Phổ điểm
-            </h2>
+            <div className="p-6 border-b" style={{ borderColor: colors.light }}>
+              <h2
+                className="text-xl font-bold"
+                style={{ color: colors.darkBrown }}
+              >
+                Phổ điểm
+              </h2>
+            </div>
 
-            <div className="space-y-4">
+            <div className="p-6">
+              <div className="space-y-4">
               {Object.entries(scoreDistribution).map(([range, count]) => {
                 const percentage = (count / maxCount) * 100;
                 return (
@@ -413,16 +416,17 @@ export default function ExamResultsPage() {
                   </div>
                 );
               })}
-            </div>
+              </div>
 
-            {filteredAttempts.length === 0 && (
-              <p
-                className="text-sm text-center mt-8"
-                style={{ color: colors.brown }}
-              >
-                Chưa có dữ liệu để hiển thị
-              </p>
-            )}
+              {filteredAttempts.length === 0 && (
+                <p
+                  className="text-sm text-center mt-8"
+                  style={{ color: colors.brown }}
+                >
+                  Chưa có dữ liệu để hiển thị
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
