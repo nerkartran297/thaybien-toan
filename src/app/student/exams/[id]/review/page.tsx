@@ -156,7 +156,7 @@ export default function ReviewExamPage() {
           </div>
         </div>
 
-        <div className="flex gap-4 h-[calc(100vh-350px)]">
+        <div className="flex gap-4 h-[calc(100vh-100px)]">
           {/* Left column - Exam Info */}
           <div
             className="w-80 bg-white rounded-lg shadow-lg p-6 overflow-y-auto flex-shrink-0"
