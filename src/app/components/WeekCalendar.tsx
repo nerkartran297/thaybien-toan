@@ -444,8 +444,8 @@ export default function WeekCalendar({
         )}
       </div>
 
-      {/* Calendar Grid */}
-      <div className="overflow-x-auto">
+      {/* Calendar Grid - Desktop */}
+      <div className="hidden md:block overflow-x-auto">
         <div
           className="rounded-lg border-2 min-w-[800px]"
           style={{ borderColor: colors.brown }}
@@ -826,10 +826,10 @@ export default function WeekCalendar({
                             }
                           }}
                         >
-                          <div className="h-full flex flex-col items-center justify-center">
+                          <div className="h-full flex flex-col items-center justify-center px-1">
                             {role === "student" && (
                               <div
-                                className={`font-semibold text-sm truncate text-center transition-opacity ${
+                                className={`font-semibold text-sm text-center transition-opacity break-words ${
                                   hoveredClassBlock &&
                                   hoveredClassBlock.classId ===
                                     cls._id?.toString() &&
@@ -845,7 +845,12 @@ export default function WeekCalendar({
                                     ? "opacity-0 absolute pointer-events-none"
                                     : "opacity-100"
                                 }`}
-                                style={{ color: "inherit" }}
+                                style={{ 
+                                  color: "inherit",
+                                  wordBreak: "break-word",
+                                  overflowWrap: "break-word",
+                                  hyphens: "auto",
+                                }}
                               >
                                 {cls.name}
                               </div>
@@ -908,12 +913,523 @@ export default function WeekCalendar({
                               )}
 
                             {role === "teacher" && (
-                              <div className="text-xs space-y-1">
-                                <div>{studentCountForDate} học sinh</div>
+                              <div className="text-xs space-y-1 px-1">
+                                <div className="break-words" style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>{studentCountForDate} học sinh</div>
                                 {role === "teacher" &&
                                   (absenceCountForDate > 0 ||
                                     makeupCountForDate > 0) && (
-                                    <div className="text-[10px] opacity-75">
+                                    <div className="text-[10px] opacity-75 break-words" style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
+                                      {absenceCountForDate > 0 && (
+                                        <span>
+                                          Vắng: {absenceCountForDate}{" "}
+                                        </span>
+                                      )}
+                                      {makeupCountForDate > 0 && (
+                                        <span>Bù: {makeupCountForDate}</span>
+                                      )}
+                                    </div>
+                                  )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Calendar Grid - Mobile with frozen time column */}
+      <div className="block md:hidden overflow-x-auto -mx-8 px-4">
+        <div
+          className="border-2"
+          style={{ 
+            borderColor: colors.brown,
+            minWidth: "max-content",
+            width: "max-content",
+          }}
+        >
+          {/* Header row with days */}
+          <div
+            className="flex"
+            style={{ backgroundColor: colors.lightGreen }}
+          >
+            {/* Frozen time column header */}
+            <div
+              className="sticky left-0 z-20 p-2 font-bold text-center border-r-2 border-b-2 flex justify-center items-center flex-shrink-0"
+              style={{
+                borderColor: colors.brown,
+                color: colors.darkBrown,
+                backgroundColor: colors.lightGreen,
+                minWidth: "80px",
+                width: "80px",
+                boxShadow: "2px 0 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div className="text-xs">Giờ</div>
+            </div>
+            {/* Scrollable day headers */}
+            <div className="flex">
+              {weekDates.map((date, index) => {
+                const isStartDate = isFirstDayOfEnrollment(date);
+                const hasAttendance = hasAttendanceOnDate(date);
+                return (
+                  <div
+                    key={index}
+                    className={`p-2 text-center border-r-2 last:border-r-0 border-b-2 flex-shrink-0 ${
+                      isStartDate ? "ring-4 ring-yellow-400" : ""
+                    }`}
+                    style={{
+                      borderColor: colors.brown,
+                      color: colors.darkBrown,
+                      backgroundColor:
+                        hasAttendance && !isStartDate
+                          ? colors.mediumGreen
+                          : colors.lightGreen,
+                      minWidth: "120px",
+                      width: "120px",
+                    }}
+                  >
+                    <div className="font-semibold text-xs">
+                      {daysOfWeek[date.getDay() === 0 ? 6 : date.getDay() - 1]}
+                    </div>
+                    <div className="text-xs">{formatDate(date)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Time slots with frozen time column */}
+          <div className="flex">
+            {/* Frozen time column */}
+            <div
+              className="sticky left-0 z-10 border-r-2 flex-shrink-0"
+              style={{
+                backgroundColor: "var(--time-column-background)",
+                borderColor: colors.brown,
+                minWidth: "80px",
+                width: "80px",
+                boxShadow: "2px 0 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              {timeSlots.map((timeSlot, timeIndex) => {
+                const [, minute] = timeSlot.split(":").map(Number);
+                const showLabel = minute === 0;
+                const showHalfHour = minute === 30;
+
+                return (
+                  <div
+                    key={timeIndex}
+                    className="text-center font-medium text-xs"
+                    style={{
+                      height: `${TIME_SLOT_HEIGHT}px`,
+                      borderColor: colors.light,
+                      color: colors.darkBrown,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: showLabel || showHalfHour ? "0.25rem" : "0",
+                    }}
+                  >
+                    {showLabel || showHalfHour ? timeSlot : " "}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Scrollable day columns */}
+            <div className="flex">
+              {weekDates.map((date, dayIndex) => {
+                const classesForDate = getClassesForDate(date);
+                const isStartDate = isFirstDayOfEnrollment(date);
+
+                return (
+                  <div
+                    key={dayIndex}
+                    className="border-r-2 last:border-r-0 relative flex-shrink-0"
+                    style={{
+                      borderColor: colors.brown,
+                      backgroundColor:
+                        role === "student"
+                          ? isStartDate
+                            ? "#FFF9E6"
+                            : "white"
+                          : "white",
+                      height: `${timeSlots.length * TIME_SLOT_HEIGHT}px`,
+                      minWidth: "120px",
+                      width: "120px",
+                    }}
+                  >
+                    {/* Hour dividers */}
+                    {timeSlots.map((_, timeIndex) => (
+                      <div
+                        key={timeIndex}
+                        className="absolute left-0 right-0"
+                        style={{
+                          borderColor: colors.light,
+                          top: `${timeIndex * TIME_SLOT_HEIGHT}px`,
+                          height: `${TIME_SLOT_HEIGHT}px`,
+                        }}
+                      >
+                        {/* Middle divider line */}
+                        <div
+                          className="absolute left-0 right-0"
+                          style={{
+                            top: `${TIME_SLOT_HEIGHT / 2}px`,
+                            height: "1px",
+                            backgroundColor: colors.light,
+                          }}
+                        />
+                      </div>
+                    ))}
+
+                    {/* Class blocks - Absolute positioned */}
+                    {classesForDate.map(({ class: cls, session }) => {
+                      const position = getClassPosition(session, date);
+                      const classDateForFull = new Date(date);
+                      classDateForFull.setHours(0, 0, 0, 0);
+
+                      const validEnrolledStudentsForFull =
+                        cls.enrolledStudents.filter((studentId) => {
+                          if (role === "teacher") {
+                            return true;
+                          }
+                          if (enrollment) {
+                            const enrollmentStartDate = new Date(
+                              enrollment.startDate
+                            );
+                            enrollmentStartDate.setHours(0, 0, 0, 0);
+                            return classDateForFull >= enrollmentStartDate;
+                          }
+                          return true;
+                        });
+
+                      const isFull = false;
+                      const isEnrolled =
+                        role === "student" &&
+                        studentId &&
+                        cls.enrolledStudents.some(
+                          (id) => id.toString() === studentId
+                        );
+
+                      const [startHour, startMin] = session.startTime
+                        .split(":")
+                        .map(Number);
+                      const isPastClass = isPast(date, startHour);
+                      const isCancelledOnDate = isCancelled(cls, date);
+
+                      const hasAbsenceRequest =
+                        role === "student" &&
+                        studentId &&
+                        hasExcusedAbsence(
+                          studentId,
+                          cls._id?.toString() || "",
+                          date
+                        );
+
+                      const remainingMakeupSessions =
+                        role === "student" && enrollment && studentId
+                          ? (() => {
+                              const excusedAbsences = attendanceRecords.filter(
+                                (att) =>
+                                  att.studentId?.toString() === studentId &&
+                                  att.status === "excused"
+                              ).length;
+                              const approvedMakeups = makeupRequests.filter(
+                                (m) => !m.status || m.status === "approved"
+                              ).length;
+                              return Math.max(
+                                0,
+                                excusedAbsences - approvedMakeups
+                              );
+                            })()
+                          : 0;
+
+                      const absenceCountForDate =
+                        role === "teacher"
+                          ? (() => {
+                              const checkDate = new Date(date);
+                              checkDate.setHours(0, 0, 0, 0);
+                              const checkDateStr = formatDateLocal(checkDate);
+
+                              const relevantAttendances =
+                                attendanceRecords.filter((att) => {
+                                  if (
+                                    att.classId?.toString() !==
+                                    cls._id?.toString()
+                                  )
+                                    return false;
+                                  if (att.status !== "excused") return false;
+                                  const attDate = new Date(att.sessionDate);
+                                  attDate.setHours(0, 0, 0, 0);
+                                  const attDateStr = formatDateLocal(attDate);
+                                  return attDateStr === checkDateStr;
+                                });
+
+                              const uniqueStudents = new Set<string>();
+                              relevantAttendances.forEach((att) => {
+                                if (att.studentId) {
+                                  uniqueStudents.add(att.studentId.toString());
+                                }
+                              });
+
+                              return uniqueStudents.size;
+                            })()
+                          : 0;
+
+                      const makeupCountForDate =
+                        role === "teacher"
+                          ? makeupRequests.filter((req) => {
+                              if (req.newClassId !== cls._id?.toString())
+                                return false;
+                              const makeupDate = new Date(req.newSessionDate);
+                              makeupDate.setHours(0, 0, 0, 0);
+                              const checkDate = new Date(date);
+                              checkDate.setHours(0, 0, 0, 0);
+                              return (
+                                makeupDate.getTime() === checkDate.getTime()
+                              );
+                            }).length
+                          : 0;
+
+                      const isMakeupClass =
+                        role === "student" &&
+                        studentId &&
+                        makeupRequests.some((req) => {
+                          if (!req.newClassId) return false;
+                          if (req.newClassId !== cls._id?.toString())
+                            return false;
+                          const makeupDate = new Date(req.newSessionDate);
+                          makeupDate.setHours(0, 0, 0, 0);
+                          const checkDate = new Date(date);
+                          checkDate.setHours(0, 0, 0, 0);
+                          return makeupDate.getTime() === checkDate.getTime();
+                        });
+
+                      const classDate = new Date(date);
+                      classDate.setHours(0, 0, 0, 0);
+
+                      const validEnrolledStudents = cls.enrolledStudents.filter(
+                        (studentId) => {
+                          if (role === "teacher") {
+                            return true;
+                          }
+                          if (enrollment) {
+                            const enrollmentStartDate = new Date(
+                              enrollment.startDate
+                            );
+                            enrollmentStartDate.setHours(0, 0, 0, 0);
+                            return classDate >= enrollmentStartDate;
+                          }
+                          return true;
+                        }
+                      );
+
+                      let studentCountForDate = validEnrolledStudents.length;
+                      if (role === "teacher") {
+                        studentCountForDate =
+                          validEnrolledStudents.length -
+                          absenceCountForDate +
+                          makeupCountForDate;
+                      } else if (role === "student") {
+                        if (isEnrolled && hasAbsenceRequest) {
+                          studentCountForDate -= 1;
+                        }
+                        if (isMakeupClass) {
+                          studentCountForDate += 1;
+                        }
+                      }
+
+                      return (
+                        <div
+                          key={cls._id?.toString()}
+                          className={`absolute left-1 right-1 rounded-lg p-1.5 transition-all hover:shadow-lg border-2 border-gray-300 ${
+                            role === "student" && isPastClass
+                              ? "opacity-100"
+                              : "cursor-pointer"
+                          }`}
+                          style={{
+                            top: `${position.top}px`,
+                            height: `${position.height}px`,
+                            backgroundColor:
+                              role === "student"
+                                ? isCancelledOnDate
+                                  ? "var(--class-cancelled)"
+                                  : hasAbsenceRequest
+                                  ? "var(--class-absence)"
+                                  : isMakeupClass
+                                  ? "var(--class-makeup)"
+                                  : isEnrolled
+                                  ? "var(--class-regular)"
+                                  : isFull
+                                  ? "var(--class-full)"
+                                  : "var(--class-available)"
+                                : isCancelledOnDate
+                                ? "var(--teacher-class-cancelled)"
+                                : isFull
+                                ? "var(--teacher-class-full)"
+                                : "var(--teacher-class-available)",
+                            color:
+                              role === "student"
+                                ? isCancelledOnDate
+                                  ? "var(--text-cancelled)"
+                                  : hasAbsenceRequest
+                                  ? "var(--text-absence)"
+                                  : isMakeupClass
+                                  ? "var(--text-makeup)"
+                                  : isEnrolled
+                                  ? "var(--text-regular)"
+                                  : isFull
+                                  ? "var(--text-full)"
+                                  : "var(--text-available)"
+                                : isCancelledOnDate
+                                ? "var(--text-teacher-cancelled)"
+                                : isFull
+                                ? "var(--text-teacher-full)"
+                                : "var(--text-teacher-available)",
+                            zIndex: 5,
+                            overflow: "hidden",
+                            display: "flex",
+                            flexDirection: "column",
+                          }}
+                          onClick={() => {
+                            if (role === "student") {
+                              if (
+                                isPastClass ||
+                                isCancelledOnDate ||
+                                hasAbsenceRequest
+                              )
+                                return;
+                              if (isEnrolled) {
+                                handleClassClick(cls, date, "absence");
+                              }
+                            }
+                            if (role === "teacher") {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              const classDate = new Date(date);
+                              classDate.setHours(0, 0, 0, 0);
+                              const isTodayOrPast = classDate.getTime() <= today.getTime();
+                              
+                              if (isTodayOrPast || isCancelledOnDate) {
+                                handleClassClick(cls, date, "attendance");
+                              } else {
+                                handleClassClick(cls, date, "edit");
+                              }
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            if (role === "student") {
+                              setHoveredClassBlock({
+                                classId: cls._id?.toString() || "",
+                                date,
+                              });
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            if (role === "student") {
+                              setHoveredClassBlock(null);
+                            }
+                          }}
+                        >
+                          <div className="h-full flex flex-col items-center justify-center px-0.5">
+                            {role === "student" && (
+                              <div
+                                className={`font-semibold text-xs text-center transition-opacity break-words ${
+                                  hoveredClassBlock &&
+                                  hoveredClassBlock.classId ===
+                                    cls._id?.toString() &&
+                                  hoveredClassBlock.date.toDateString() ===
+                                    date.toDateString() &&
+                                  ((isEnrolled &&
+                                    !isPastClass &&
+                                    !isCancelledOnDate &&
+                                    !hasAbsenceRequest) ||
+                                    (!isEnrolled &&
+                                      !isPastClass &&
+                                      !isCancelledOnDate))
+                                    ? "opacity-0 absolute pointer-events-none"
+                                    : "opacity-100"
+                                }`}
+                                style={{ 
+                                  color: "inherit",
+                                  wordBreak: "break-word",
+                                  overflowWrap: "break-word",
+                                  hyphens: "auto",
+                                }}
+                              >
+                                {cls.name}
+                              </div>
+                            )}
+
+                            {role === "student" &&
+                              hoveredClassBlock &&
+                              hoveredClassBlock.classId ===
+                                cls._id?.toString() &&
+                              hoveredClassBlock.date.toDateString() ===
+                                date.toDateString() && (
+                                <div className="flex flex-col gap-1.5 items-center">
+                                  {isEnrolled &&
+                                    !isPastClass &&
+                                    !isCancelledOnDate &&
+                                    !hasAbsenceRequest && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleClassClick(
+                                            cls,
+                                            date,
+                                            "absence"
+                                          );
+                                        }}
+                                        className="text-xs px-2 py-1 rounded hover:bg-orange-500 hover:text-white transition-colors whitespace-nowrap"
+                                        style={{
+                                          backgroundColor: colors.darkBrown,
+                                          color: "white",
+                                        }}
+                                      >
+                                        Xin vắng
+                                      </button>
+                                    )}
+                                  {!isEnrolled &&
+                                    !isPastClass &&
+                                    !isCancelledOnDate && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          if (onRequestMakeup) {
+                                            onRequestMakeup(
+                                              cls._id!.toString(),
+                                              date,
+                                              remainingMakeupSessions.toString()
+                                            );
+                                          }
+                                        }}
+                                        className="text-xs px-2 py-1 rounded hover:bg-blue-500 hover:text-white transition-colors whitespace-nowrap"
+                                        style={{
+                                          backgroundColor: colors.mediumGreen,
+                                          color: "white",
+                                        }}
+                                      >
+                                        Học bù
+                                      </button>
+                                    )}
+                                </div>
+                              )}
+
+                            {role === "teacher" && (
+                              <div className="text-xs space-y-0.5 px-0.5">
+                                <div className="break-words" style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>{studentCountForDate} học sinh</div>
+                                {role === "teacher" &&
+                                  (absenceCountForDate > 0 ||
+                                    makeupCountForDate > 0) && (
+                                    <div className="text-[9px] opacity-75 break-words" style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
                                       {absenceCountForDate > 0 && (
                                         <span>
                                           Vắng: {absenceCountForDate}{" "}
