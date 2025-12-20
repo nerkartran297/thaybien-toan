@@ -697,12 +697,13 @@ export default function TakeExamPage() {
                 <div className="grid grid-cols-5 gap-2">
                   {Array.from({ length: totalQuestions }).map((_, index) => {
                     const hasAnswer = !!studentAnswers[index];
+                    const selectedAnswer = studentAnswers[index];
                     return (
                       <button
                         key={index}
                         type="button"
                         onClick={() => setSelectedQuestionIndex(index)}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
                           selectedQuestionIndex === index
                             ? "ring-2 ring-offset-2"
                             : ""
@@ -722,6 +723,11 @@ export default function TakeExamPage() {
                         }}
                       >
                         {index + 1}
+                        {selectedAnswer && (
+                          <span className="block text-xs font-bold mt-0.5">
+                            {selectedAnswer}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -747,10 +753,7 @@ export default function TakeExamPage() {
                           type="button"
                           onClick={() => {
                             handleSelectAnswer(selectedQuestionIndex, option);
-                            // Auto close modal after selection
-                            setTimeout(() => {
-                              setShowAnswerModal(false);
-                            }, 300);
+                            // Keep modal open, don't close
                           }}
                           disabled={!!attempt.submittedAt}
                           className={`py-4 px-6 rounded-lg border-2 flex items-center justify-center font-semibold transition-all text-lg ${
