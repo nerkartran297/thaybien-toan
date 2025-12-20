@@ -283,12 +283,6 @@ export default function AboutPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/contact"
-              className="px-8 py-3 bg-[#D4A047] text-white rounded-lg hover:bg-[#B8860B] transition-colors font-semibold"
-            >
-              Liên Hệ Ngay
-            </Link>
-            <Link
               href="/products"
               className="px-8 py-3 border-2 border-[#D4A047] text-[#D4A047] rounded-lg hover:bg-[#D4A047] hover:text-white transition-colors font-semibold"
             >
