@@ -23,8 +23,8 @@ export default function Navigation() {
           <Image
             src="/logo-bw-100.png"
             alt="Phuc Nguyen Guitar Logo"
-            width={100}
-            height={100}
+            width={200}
+            height={200}
           />
         </Link>
       </div>
