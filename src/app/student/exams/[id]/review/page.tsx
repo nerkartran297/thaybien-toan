@@ -28,6 +28,7 @@ export default function ReviewExamPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"exam" | "results">("exam");
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "student")) {
@@ -121,42 +122,187 @@ export default function ReviewExamPage() {
     <div className="min-h-screen" style={{ backgroundColor: colors.light }}>
       <Navigation />
 
-      <div className="max-w-full mx-auto px-4 py-8">
-        <div className="mb-6">
+      <div className="max-w-full mx-auto px-4 py-4 md:py-8">
+        {/* Header */}
+        <div className="mb-4 md:mb-6">
           <h1
-            className="text-3xl font-bold mb-2"
+            className="text-xl md:text-3xl font-bold mb-2"
             style={{ color: colors.darkBrown }}
           >
             Xem lại bài làm: {exam.name}
           </h1>
         </div>
 
-        {/* Result Summary */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6" style={{ borderColor: colors.brown, borderWidth: "2px" }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold mb-2" style={{ color: colors.darkBrown }}>
-                Kết quả
-              </h2>
-              <div className="text-3xl font-bold" style={{ color: colors.brown }}>
-                {score}/{totalQuestions} điểm
-              </div>
-              <div className="text-lg mt-1" style={{ color: colors.darkBrown }}>
-                Điểm số: {((score / totalQuestions) * 10).toFixed(2)}/10
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm" style={{ color: colors.brown }}>
-                Thời gian làm: {attempt.timeSpent || 0} phút
-              </div>
-              <div className="text-sm" style={{ color: colors.brown }}>
-                Nộp lúc: {new Date(attempt.submittedAt).toLocaleString("vi-VN")}
+        {/* Result Summary - Compact on mobile */}
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6 mb-4 md:mb-6" style={{ borderColor: colors.brown, borderWidth: "2px" }}>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-3 md:gap-4">
+                <div>
+                  <div className="text-xl md:text-3xl font-bold" style={{ color: colors.brown }}>
+                    {score}/{totalQuestions} điểm
+                  </div>
+                  <div className="text-sm md:text-lg mt-1" style={{ color: colors.darkBrown }}>
+                    Điểm số: {((score / totalQuestions) * 10).toFixed(2)}/10
+                  </div>
+                </div>
+                <div className="text-xs md:text-sm" style={{ color: colors.brown }}>
+                  <div>Thời gian: {attempt.timeSpent || 0} phút</div>
+                  <div>Nộp lúc: {new Date(attempt.submittedAt).toLocaleString("vi-VN")}</div>
+                </div>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => router.push("/student/exams")}
+              className="w-full md:w-auto px-4 py-2 rounded-lg text-white font-medium transition-colors text-sm md:text-base"
+              style={{
+                backgroundColor: colors.brown,
+              }}
+            >
+              Quay lại danh sách đề
+            </button>
           </div>
         </div>
 
-        <div className="flex gap-4 h-[calc(100vh-100px)]">
+        {/* Mobile Tab Bar */}
+        <div className="block md:hidden bg-white rounded-lg shadow-lg mb-4" style={{ borderColor: colors.brown, borderWidth: "2px" }}>
+          <div className="flex border-b" style={{ borderColor: colors.light }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab("exam")}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === "exam"
+                  ? "border-b-2"
+                  : "opacity-60 hover:opacity-80"
+              }`}
+              style={{
+                color: activeTab === "exam" ? colors.darkBrown : colors.brown,
+                borderBottomColor: activeTab === "exam" ? colors.brown : "transparent",
+              }}
+            >
+              Đề bài
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("results")}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === "results"
+                  ? "border-b-2"
+                  : "opacity-60 hover:opacity-80"
+              }`}
+              style={{
+                color: activeTab === "results" ? colors.darkBrown : colors.brown,
+                borderBottomColor: activeTab === "results" ? colors.brown : "transparent",
+              }}
+            >
+              Kết quả
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Tab Content */}
+        <div className="block md:hidden">
+          {activeTab === "exam" && (
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden" style={{ borderColor: colors.brown, borderWidth: "2px", minHeight: "calc(100vh - 300px)" }}>
+              <div className="h-full flex flex-col" style={{ minHeight: "calc(100vh - 300px)" }}>
+                <div className="flex-1 overflow-auto p-2">
+                  {exam.filePath && (
+                    <iframe
+                      src={exam.filePath}
+                      className="w-full border-0"
+                      style={{ minHeight: "600px", height: "100%" }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "results" && (
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden" style={{ borderColor: colors.brown, borderWidth: "2px", minHeight: "calc(100vh - 300px)" }}>
+              <div className="h-full flex flex-col" style={{ minHeight: "calc(100vh - 300px)" }}>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="space-y-4">
+                    {Array.from({ length: totalQuestions }).map((_, index) => {
+                      const status = getAnswerStatus(index);
+                      if (!status) return null;
+
+                      const { isCorrect, isAnswered, correctAnswer, studentAnswer } = status;
+
+                      return (
+                        <div
+                          key={index}
+                          className="border-b pb-4 mb-4"
+                          style={{ borderColor: colors.light }}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                            <div
+                              className="text-base sm:text-lg font-semibold"
+                              style={{ color: colors.darkBrown }}
+                            >
+                              Câu {index + 1}
+                            </div>
+                            {isCorrect ? (
+                              <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 w-fit">
+                                Đúng
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 w-fit">
+                                {isAnswered ? "Sai" : "Chưa trả lời"}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Answer options */}
+                          <div className="space-y-2">
+                            {ANSWER_OPTIONS.map((option) => {
+                              const isCorrectOption = option === correctAnswer;
+                              const isStudentAnswer = option === studentAnswer;
+                              let bgColor = "bg-white";
+                              let borderColor = colors.brown + "40";
+                              let textColor = colors.darkBrown;
+
+                              if (isCorrectOption) {
+                                bgColor = "bg-green-100";
+                                borderColor = "#10B981";
+                                textColor = "#065F46";
+                              }
+                              if (isStudentAnswer && !isCorrect) {
+                                bgColor = "bg-red-100";
+                                borderColor = "#DC2626";
+                                textColor = "#991B1B";
+                              }
+
+                              return (
+                                <div
+                                  key={option}
+                                  className={`w-full py-2 px-3 rounded border-2 flex items-center justify-between ${bgColor}`}
+                                  style={{ borderColor, color: textColor }}
+                                >
+                                  <span className="font-semibold text-sm sm:text-base">{option}</span>
+                                  {isCorrectOption && (
+                                    <span className="text-xs font-medium">✓ Đáp án đúng</span>
+                                  )}
+                                  {isStudentAnswer && !isCorrectOption && (
+                                    <span className="text-xs font-medium">✗ Bạn chọn</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Layout - 3 columns */}
+        <div className="hidden md:flex gap-4 h-[calc(100vh-100px)]">
           {/* Left column - Exam Info */}
           <div
             className="w-80 bg-white rounded-lg shadow-lg p-6 overflow-y-auto flex-shrink-0"
@@ -345,20 +491,6 @@ export default function ReviewExamPage() {
                   );
                 })}
               </div>
-            </div>
-
-            {/* Back button - Fixed at bottom */}
-            <div className="p-6 pt-4 border-t flex-shrink-0" style={{ borderColor: colors.light }}>
-              <button
-                type="button"
-                onClick={() => router.push("/student/exams")}
-                className="w-full py-3 px-4 rounded-lg text-white font-medium transition-colors"
-                style={{
-                  backgroundColor: colors.brown,
-                }}
-              >
-                Quay lại danh sách đề
-              </button>
             </div>
           </div>
         </div>
