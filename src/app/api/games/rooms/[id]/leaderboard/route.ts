@@ -123,6 +123,57 @@ export async function GET(
           };
         })
       );
+    } else if (activityType === 'quiz') {
+      // For quiz activities: get quiz student scores sorted by totalScore
+      const quizScores = await db
+        .collection('quizStudentScores')
+        .find({ roomId: roomObjectId })
+        .sort({ totalScore: -1 })
+        .toArray();
+
+      // Limit to top 50
+      const topScores = quizScores.slice(0, 50);
+
+      leaderboard = await Promise.all(
+        topScores.map(async (score, index) => {
+          const studentProfile = await db
+            .collection('student_profiles')
+            .findOne({ _id: score.studentId });
+
+          if (!studentProfile) {
+            console.warn(`Student profile not found for score ${score._id}, studentId: ${score.studentId}`);
+            return null;
+          }
+
+          if (!studentProfile.userId) {
+            console.warn(`Student profile ${studentProfile._id} missing userId`);
+            return null;
+          }
+
+          const studentUser = await db.collection('users').findOne({
+            _id: studentProfile.userId,
+          });
+
+          if (!studentUser) {
+            console.warn(`User not found for profile ${studentProfile._id}, userId: ${studentProfile.userId}`);
+            return null;
+          }
+
+          // Get name from fullName, name, or username
+          const studentName = studentUser.fullName || (studentUser as any).name || studentUser.username || 'N/A';
+
+          return {
+            rank: index + 1,
+            id: score._id.toString(),
+            studentId: studentProfile._id.toString(),
+            name: studentName,
+            score: score.totalScore || 0,
+            highestScore: score.totalScore || 0,
+            currentScore: score.totalScore || 0,
+            updatedAt: score.updatedAt || score.createdAt,
+          };
+        })
+      );
     } else {
       // For game activities (snake, quiz): get game sessions sorted by highestScore
       const gameSessions = await db

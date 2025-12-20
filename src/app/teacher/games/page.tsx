@@ -7,7 +7,84 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { DateTimePicker } from "@/app/components/ui/date-time-picker";
 import { Exam } from "@/models/Exam";
+import { Quiz } from "@/models/Quiz";
 import { Class } from "@/models/Class";
+
+// Quiz Selector Component
+function QuizSelector({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (quizId: string) => void;
+}) {
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchQuizzes();
+  }, []);
+
+  const fetchQuizzes = async () => {
+    try {
+      const response = await fetch("/api/quizzes");
+      if (response.ok) {
+        const data = await response.json();
+        setQuizzes(data);
+      }
+    } catch (error) {
+      console.error("Error fetching quizzes:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedQuiz = quizzes.find((quiz) => quiz._id?.toString() === value);
+  const totalQuestions = selectedQuiz?.questions?.length || 0;
+
+  if (loading) {
+    return <div className="text-sm text-[#6C584C]">Đang tải...</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-4 py-2 border border-[#ADC178] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A98467]"
+        required
+      >
+        <option value="">-- Chọn Quiz --</option>
+        {quizzes.map((quiz) => (
+          <option key={quiz._id?.toString()} value={quiz._id?.toString()}>
+            {quiz.name} ({quiz.questions?.length || 0} câu)
+          </option>
+        ))}
+      </select>
+
+      {selectedQuiz && (
+        <div className="bg-[#F0EAD2] border border-[#ADC178] rounded-lg p-4 space-y-2">
+          <div>
+            <h4 className="font-semibold text-[#2c3e50] text-lg">
+              {selectedQuiz.name}
+            </h4>
+          </div>
+
+          {selectedQuiz.description && (
+            <p className="text-sm text-[#6C584C]">{selectedQuiz.description}</p>
+          )}
+
+          <div className="flex gap-4 text-sm text-[#6C584C]">
+            <div>
+              <span className="font-medium">Số câu hỏi:</span> {totalQuestions}{" "}
+              câu
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Exam Selector Component
 function ExamSelector({
@@ -166,6 +243,7 @@ interface Room {
   isActive: boolean;
   createdAt: string;
   examId?: string; // For exam activities
+  quizId?: string; // For quiz activities
 }
 
 export default function TeacherGamesPage() {
@@ -223,6 +301,7 @@ export default function TeacherGamesPage() {
     startDateTime: getNextQuarterHourDate(),
     endDateTime: getNextQuarterHourDate(),
     examId: "",
+    quizId: "",
   });
 
   useEffect(() => {
@@ -273,6 +352,12 @@ export default function TeacherGamesPage() {
         return;
       }
 
+      // Validate quizId if activityType is quiz
+      if (formData.activityType === "quiz" && !formData.quizId) {
+        alert("Vui lòng chọn quiz");
+        return;
+      }
+
       const response = await fetch("/api/games/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -284,6 +369,8 @@ export default function TeacherGamesPage() {
           duration: duration,
           examId:
             formData.activityType === "exam" ? formData.examId : undefined,
+          quizId:
+            formData.activityType === "quiz" ? formData.quizId : undefined,
         }),
       });
 
@@ -295,6 +382,7 @@ export default function TeacherGamesPage() {
           startDateTime: getNextQuarterHourDate(),
           endDateTime: getNextQuarterHourDate(),
           examId: "",
+          quizId: "",
         });
         fetchRooms();
       } else {
@@ -387,6 +475,7 @@ export default function TeacherGamesPage() {
         ? new Date(room.endTime)
         : getNextQuarterHourDate(),
       examId: room.examId || "",
+      quizId: room.quizId || "",
     });
     setShowCreateForm(true);
   };
@@ -415,6 +504,12 @@ export default function TeacherGamesPage() {
         return;
       }
 
+      // Validate quizId if activityType is quiz
+      if (formData.activityType === "quiz" && !formData.quizId) {
+        alert("Vui lòng chọn quiz");
+        return;
+      }
+
       const response = await fetch(`/api/games/rooms/${editingRoom.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -426,6 +521,8 @@ export default function TeacherGamesPage() {
           duration: duration,
           examId:
             formData.activityType === "exam" ? formData.examId : undefined,
+          quizId:
+            formData.activityType === "quiz" ? formData.quizId : undefined,
         }),
       });
 
@@ -438,6 +535,7 @@ export default function TeacherGamesPage() {
           startDateTime: getNextQuarterHourDate(),
           endDateTime: getNextQuarterHourDate(),
           examId: "",
+          quizId: "",
         });
         fetchRooms();
       } else {
@@ -480,6 +578,7 @@ export default function TeacherGamesPage() {
                   startDateTime: getNextQuarterHourDate(),
                   endDateTime: getNextQuarterHourDate(),
                   examId: "",
+                  quizId: "",
                 });
               }
             }}
@@ -524,6 +623,7 @@ export default function TeacherGamesPage() {
                       ...formData,
                       activityType: e.target.value,
                       examId: "",
+                      quizId: "",
                     })
                   }
                   className="w-full px-4 py-2 border border-[#ADC178] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A98467]"
@@ -541,6 +641,17 @@ export default function TeacherGamesPage() {
                   <ExamSelector
                     value={formData.examId}
                     onChange={(examId) => setFormData({ ...formData, examId })}
+                  />
+                </div>
+              )}
+              {formData.activityType === "quiz" && (
+                <div>
+                  <label className="block text-sm font-medium text-[#2c3e50] mb-1">
+                    Chọn Quiz *
+                  </label>
+                  <QuizSelector
+                    value={formData.quizId}
+                    onChange={(quizId) => setFormData({ ...formData, quizId })}
                   />
                 </div>
               )}
@@ -642,12 +753,22 @@ export default function TeacherGamesPage() {
                       )}
                     </div>
                     {hasRoomStarted(room) && (
-                      <Link
-                        href={`/teacher/games/${room.id}/leaderboard`}
-                        className="w-full bg-[#A98467] text-white text-center py-2 rounded-lg hover:bg-[#6C584C] font-bold"
-                      >
-                        🏆 Xem Bảng Xếp Hạng
-                      </Link>
+                      <>
+                        {room.activityType === "quiz" && (
+                          <Link
+                            href={`/teacher/games/${room.id}/quiz`}
+                            className="w-full bg-[#ADC178] text-[#2c3e50] text-center py-2 rounded-lg hover:bg-[#A98467] hover:text-white font-bold mb-2"
+                          >
+                            🎯 Điều Khiển Quiz
+                          </Link>
+                        )}
+                        <Link
+                          href={`/teacher/games/${room.id}/leaderboard`}
+                          className="w-full bg-[#A98467] text-white text-center py-2 rounded-lg hover:bg-[#6C584C] font-bold"
+                        >
+                          🏆 Xem Bảng Xếp Hạng
+                        </Link>
+                      </>
                     )}
                     <div className="flex gap-2 mt-2">
                       {hasRoomStarted(room) && (

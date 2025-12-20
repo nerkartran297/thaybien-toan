@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { ExamAttempt } from "@/models/ExamAttempt";
 import dynamic from "next/dynamic";
 
 // Dynamically import SnakeGame to avoid SSR issues
@@ -86,27 +87,61 @@ export default function StudentGameRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomEnded, room?.isActive]);
 
-  // Auto-redirect when exam room starts
+  // Auto-redirect when exam room starts (only if not already submitted)
   useEffect(() => {
-    if (!room) return;
+    if (!room || !user) return;
 
     const activityType = room.activityType || room.gameType;
 
-    // If it's an exam activity and room just became active, redirect to exam page
+    // If it's an exam activity and room just became active, check if already submitted
     if (
       activityType === "exam" &&
       room.isActive &&
       room.startTime &&
       room.examId
     ) {
-      // Small delay to show the "Starting..." message
-      const timer = setTimeout(() => {
-        router.push(`/student/games/${room.id}/exam`);
-      }, 1000);
+      // Check if student has already submitted
+      const checkSubmission = async () => {
+        try {
+          const attemptsResponse = await fetch(
+            `/api/exam-attempts?examId=${room.examId}&roomId=${room.id}`
+          );
+          if (attemptsResponse.ok) {
+            const attempts = await attemptsResponse.json();
+            const submittedAttempt = attempts.find(
+              (
+                a: ExamAttempt & {
+                  roomId?: string | { toString: () => string };
+                }
+              ) => {
+                const attemptRoomId =
+                  typeof a.roomId === "string"
+                    ? a.roomId
+                    : a.roomId?.toString();
+                return (
+                  a.submittedAt &&
+                  (attemptRoomId === room.id ||
+                    attemptRoomId === room.id.toString())
+                );
+              }
+            );
 
-      return () => clearTimeout(timer);
+            // Only redirect if NOT already submitted
+            if (!submittedAttempt) {
+              const timer = setTimeout(() => {
+                router.push(`/student/games/${room.id}/exam`);
+              }, 1000);
+              return () => clearTimeout(timer);
+            }
+          }
+        } catch (error) {
+          console.error("Error checking submission:", error);
+        }
+      };
+
+      checkSubmission();
     }
-  }, [room, router]);
+  }, [room, user, router]);
 
   const fetchRoom = async () => {
     try {
@@ -242,30 +277,46 @@ export default function StudentGameRoomPage() {
             Thông Tin Room
           </h2>
           {roomEnded ? (
-            <div className="bg-[#EFEBDF] border-l-4 border-[#A98467] p-4 mb-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-[#A98467]"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-lg font-semibold text-[#6C584C]">
-                    Room đã kết thúc
-                  </p>
-                  <p className="text-sm text-[#A98467] mt-1">
-                    Bảng xếp hạng cuối cùng đã được hiển thị bên dưới.
-                  </p>
+            <div className="space-y-4">
+              <div className="bg-[#EFEBDF] border-l-4 border-[#A98467] p-4 mb-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg
+                      className="h-5 w-5 text-[#A98467]"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-lg font-semibold text-[#6C584C]">
+                      Room đã kết thúc
+                    </p>
+                    <p className="text-sm text-[#A98467] mt-1">
+                      Bảng xếp hạng cuối cùng đã được hiển thị bên dưới.
+                    </p>
+                  </div>
                 </div>
               </div>
+              {(() => {
+                const activityType = room?.activityType || room?.gameType;
+                if (activityType === "exam") {
+                  return (
+                    <Link
+                      href={`/student/games/${room?.id || params.id}/exam`}
+                      className="block w-full bg-[#ADC178] text-[#2c3e50] py-3 rounded-lg hover:bg-[#A98467] hover:text-white transition-colors font-bold text-lg text-center"
+                    >
+                      📝 Xem Kết Quả Làm Bài
+                    </Link>
+                  );
+                }
+                return null;
+              })()}
             </div>
           ) : (
             <>
@@ -348,6 +399,10 @@ export default function StudentGameRoomPage() {
                 }
 
                 // Quiz (not implemented yet)
+                if (activityType === "quiz" && room.isActive) {
+                  router.push(`/student/games/${room.id}/quiz`);
+                  return;
+                }
                 if (activityType === "quiz") {
                   return (
                     <div className="bg-[#EFEBDF] border-l-4 border-[#ADC178] p-4 mb-4">

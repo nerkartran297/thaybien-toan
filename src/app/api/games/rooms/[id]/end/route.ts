@@ -196,6 +196,68 @@ export async function POST(
           }
         }
       }
+    } else if (activityType === 'quiz') {
+      // For quiz activities: get quiz student scores sorted by totalScore
+      const quizScores = await db
+        .collection('quizStudentScores')
+        .find({ roomId: roomObjectId })
+        .sort({ totalScore: -1 })
+        .toArray();
+
+      for (let i = 0; i < quizScores.length; i++) {
+        const score = quizScores[i];
+        const rank = i + 1;
+        const points = getCompetitionPoints(rank);
+
+        if (points > 0) {
+          // Check if points already added for this room (prevent duplicate)
+          const competitionPointsRecord = await db
+            .collection('competition_points')
+            .findOne({
+              roomId: roomObjectId,
+              studentId: score.studentId,
+            });
+
+          if (!competitionPointsRecord) {
+            // Add points to student profile
+            await db.collection('student_profiles').updateOne(
+              { _id: score.studentId },
+              {
+                $inc: { competitionScore: points },
+                $set: { updatedAt: new Date() },
+              }
+            );
+
+            // Record that points were added for this room
+            await db.collection('competition_points').insertOne({
+              roomId: roomObjectId,
+              studentId: score.studentId,
+              points,
+              rank,
+              addedAt: new Date(),
+            });
+
+            // Update monthly score
+            const now = new Date();
+            const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            await db.collection('student_profiles').updateOne(
+              { _id: score.studentId },
+              {
+                $inc: { [`monthly_scores.${monthKey}`]: points },
+                $set: { updatedAt: new Date() },
+              }
+            );
+
+            pointsAdded += points;
+            updates.push({
+              studentId: score.studentId.toString(),
+              points,
+              rank,
+            });
+          }
+        }
+      }
     } else {
       // For game activities (snake, quiz): get game sessions sorted by highestScore
       const gameSessions = await db

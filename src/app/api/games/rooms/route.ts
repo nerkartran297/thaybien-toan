@@ -67,7 +67,8 @@ export async function GET() {
       duration: room.duration,
       isActive: room.isActive,
       createdAt: room.createdAt,
-      examId: room.examId?.toString(),
+      examId: (room as any).examId?.toString(),
+      quizId: (room as any).quizId?.toString(),
     }));
 
     return NextResponse.json(formattedRooms);
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, activityType, gameType, startTime, endTime, duration, examId } = body;
+    const { name, activityType, gameType, startTime, endTime, duration, examId, quizId } = body;
 
     // Support both old (gameType) and new (activityType) for backward compatibility
     const finalActivityType = activityType || gameType || 'snake';
@@ -132,6 +133,14 @@ export async function POST(request: NextRequest) {
     if (finalActivityType === 'exam' && !examId) {
       return NextResponse.json(
         { error: 'Exam ID is required for exam activities' },
+        { status: 400 }
+      );
+    }
+
+    // Validate quizId if activityType is quiz
+    if (finalActivityType === 'quiz' && !quizId) {
+      return NextResponse.json(
+        { error: 'Quiz ID is required for quiz activities' },
         { status: 400 }
       );
     }
@@ -182,6 +191,11 @@ export async function POST(request: NextRequest) {
     // Add examId if activityType is exam
     if (finalActivityType === 'exam' && examId) {
       room.examId = new ObjectId(examId);
+    }
+
+    // Add quizId if activityType is quiz
+    if (finalActivityType === 'quiz' && quizId) {
+      room.quizId = new ObjectId(quizId);
     }
 
     const result = await db.collection('rooms').insertOne(room);

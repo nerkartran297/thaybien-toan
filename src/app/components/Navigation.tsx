@@ -204,6 +204,12 @@ export default function Navigation() {
                     Quản lý đề
                   </Link>
                   <Link
+                    href="/teacher/quizzes"
+                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
+                  >
+                    Quản lý Quiz
+                  </Link>
+                  <Link
                     href="/teacher/games"
                     className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
                   >
@@ -439,6 +445,20 @@ export default function Navigation() {
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Quản lý đề
+                  </Link>
+                  <Link
+                    href="/teacher/quizzes"
+                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Quản lý Quiz
+                  </Link>
+                  <Link
+                    href="/teacher/games"
+                    className="block text-sm text-[#654321] hover:text-[#8B4513] transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Hoạt động
                   </Link>
                 </div>
               </div>
