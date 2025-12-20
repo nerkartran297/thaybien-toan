@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useExam } from "@/contexts/ExamContext";
@@ -25,7 +25,9 @@ export default function TakeExamPage() {
   const { isExamInProgress } = useBlockNavigation();
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const examId = params.id as string;
+  const retake = searchParams.get("retake") === "true";
 
   const [exam, setExam] = useState<Exam | null>(null);
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null);
@@ -136,6 +138,10 @@ export default function TakeExamPage() {
             setTimeRemaining(Math.max(0, totalTime - timeSpent));
             setStartedAt(startedAtDate);
             return; // Exit early, we have the attempt
+          } else {
+            // Attempt was submitted, redirect to review page
+            router.push(`/student/exams/${examId}/review?attemptId=${activeAttempt.attemptId}`);
+            return;
           }
         }
       }
@@ -144,35 +150,53 @@ export default function TakeExamPage() {
       const attemptsResponse = await fetch(`/api/exam-attempts?examId=${examId}`);
       if (attemptsResponse.ok) {
         const attempts = await attemptsResponse.json();
-        const existingAttempt = attempts.find(
-          (a: ExamAttempt) => !a.submittedAt
-        );
-
-        if (existingAttempt) {
-          // Resume existing attempt
-          setAttempt(existingAttempt);
-          // Calculate remaining time
-          const startedAtDate = new Date(existingAttempt.startedAt);
-          const timeSpent = Math.floor(
-            (new Date().getTime() - startedAtDate.getTime()) / 1000
+        
+        // If retake is requested, skip checking for submitted attempts and create new attempt
+        if (!retake) {
+          // Check for submitted attempts first - if found, redirect to review
+          const submittedAttempt = attempts.find(
+            (a: ExamAttempt) => a.submittedAt
           );
-          const totalTime = examData.timeLimit * 60; // Convert to seconds
-          setTimeRemaining(Math.max(0, totalTime - timeSpent));
-          setStartedAt(startedAtDate);
-          
-          // Update context
-          startExam(examId, existingAttempt._id?.toString() || "", startedAtDate);
-        } else {
-          // Create new attempt
-          const newAttempt = await createNewAttempt(examData.timeLimit);
-          const startedAtDate = new Date();
-          setAttempt(newAttempt);
-          setTimeRemaining(examData.timeLimit * 60);
-          setStartedAt(startedAtDate);
-          
-          // Update context
-          startExam(examId, newAttempt._id?.toString() || "", startedAtDate);
+          if (submittedAttempt) {
+            // Redirect to the most recent submitted attempt
+            router.push(`/student/exams/${examId}/review?attemptId=${submittedAttempt._id}`);
+            return;
+          }
         }
+        
+        // Look for unsubmitted attempt (only if not retaking)
+        if (!retake) {
+          const existingAttempt = attempts.find(
+            (a: ExamAttempt) => !a.submittedAt
+          );
+
+          if (existingAttempt) {
+            // Resume existing attempt
+            setAttempt(existingAttempt);
+            // Calculate remaining time
+            const startedAtDate = new Date(existingAttempt.startedAt);
+            const timeSpent = Math.floor(
+              (new Date().getTime() - startedAtDate.getTime()) / 1000
+            );
+            const totalTime = examData.timeLimit * 60; // Convert to seconds
+            setTimeRemaining(Math.max(0, totalTime - timeSpent));
+            setStartedAt(startedAtDate);
+            
+            // Update context
+            startExam(examId, existingAttempt._id?.toString() || "", startedAtDate);
+            return;
+          }
+        }
+        
+        // Create new attempt (either no existing attempt or retake requested)
+        const newAttempt = await createNewAttempt(examData.timeLimit);
+        const startedAtDate = new Date();
+        setAttempt(newAttempt);
+        setTimeRemaining(examData.timeLimit * 60);
+        setStartedAt(startedAtDate);
+        
+        // Update context
+        startExam(examId, newAttempt._id?.toString() || "", startedAtDate);
       }
     } catch (error) {
       console.error("Error fetching exam:", error);
@@ -248,13 +272,14 @@ export default function TakeExamPage() {
           score: updatedAttempt.score || 0,
           total: updatedAttempt.totalQuestions,
         });
-        setShowResultModal(true);
         // Clear timer
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
         // Clear exam context
         submitExam();
+        // Show result modal - let user choose what to do next
+        setShowResultModal(true);
       } else {
         const error = await response.json();
         alert(error.error || "Có lỗi xảy ra khi nộp bài");
@@ -449,36 +474,43 @@ export default function TakeExamPage() {
             <div className="flex-1 overflow-auto relative">
               {exam.filePath && !pdfLoadError ? (
                 <>
-                  {/* Mobile: Use object tag for better compatibility */}
+                  {/* Mobile: Optimized for Android and iOS */}
                   {isMobile ? (
-                    <object
-                      data={exam.filePath}
-                      type="application/pdf"
-                      className="w-full h-full min-h-[60vh]"
+                    <iframe
+                      src={`${exam.filePath}#toolbar=0&navpanes=0&scrollbar=1&view=FitH&zoom=page-width`}
+                      className="w-full h-full border-0"
                       style={{
                         width: "100%",
                         height: "100%",
-                        minHeight: "60vh",
+                        minHeight: "calc(100vh - 200px)",
                         border: "none",
+                        WebkitOverflowScrolling: "touch",
+                        touchAction: "pan-y",
                       }}
+                      title="Đề thi PDF"
+                      allow="fullscreen"
+                      scrolling="yes"
                       onError={() => setPdfLoadError(true)}
-                    >
-                      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-                        <p className="mb-4" style={{ color: colors.darkBrown }}>
-                          Không thể hiển thị PDF trên thiết bị này. Vui lòng tải về để xem.
-                        </p>
-                        <a
-                          href={exam.filePath}
-                          download
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 rounded-lg text-white font-medium"
-                          style={{ backgroundColor: colors.brown }}
-                        >
-                          Tải PDF về
-                        </a>
-                      </div>
-                    </object>
+                      onLoad={(e) => {
+                        // Optimize for mobile browsers
+                        try {
+                          const iframe = e.currentTarget as HTMLIFrameElement;
+                          // Set viewport for mobile
+                          if (iframe.contentDocument) {
+                            const viewport = iframe.contentDocument.querySelector('meta[name="viewport"]');
+                            if (!viewport) {
+                              const meta = iframe.contentDocument.createElement('meta');
+                              meta.name = 'viewport';
+                              meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
+                              iframe.contentDocument.head.appendChild(meta);
+                            }
+                          }
+                        } catch (error) {
+                          // Cross-origin or other error, ignore
+                          console.log("Cannot optimize iframe:", error);
+                        }
+                      }}
+                    />
                   ) : (
                     /* Desktop: Use iframe */
                     <iframe
@@ -492,19 +524,6 @@ export default function TakeExamPage() {
                       title="Đề thi PDF"
                       allow="fullscreen"
                       onError={() => setPdfLoadError(true)}
-                      onLoad={(e) => {
-                        // Try to optimize for mobile browsers
-                        try {
-                          const iframe = e.currentTarget as HTMLIFrameElement;
-                          if (isMobile && iframe.contentWindow) {
-                            // Force mobile viewport
-                            iframe.contentWindow.scrollTo(0, 0);
-                          }
-                        } catch (error) {
-                          // Cross-origin or other error, ignore
-                          console.log("Cannot optimize iframe:", error);
-                        }
-                      }}
                     />
                   )}
                 </>
@@ -512,31 +531,51 @@ export default function TakeExamPage() {
                 /* Fallback if PDF fails to load */
                 <div className="flex flex-col items-center justify-center h-full p-4 text-center">
                   <p className="mb-4 text-lg" style={{ color: colors.darkBrown }}>
-                    Không thể tải PDF. Vui lòng thử lại hoặc tải về để xem.
+                    {isMobile 
+                      ? "Trình duyệt không hỗ trợ xem PDF trực tiếp. Vui lòng tải về để xem."
+                      : "Không thể tải PDF. Vui lòng thử lại hoặc tải về để xem."}
                   </p>
                   {exam.filePath && (
-                    <a
-                      href={exam.filePath}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-6 py-3 rounded-lg text-white font-medium transition-colors hover:opacity-90"
-                      style={{ backgroundColor: colors.brown }}
-                    >
-                      Tải PDF về
-                    </a>
+                    <>
+                      <a
+                        href={exam.filePath}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-6 py-3 rounded-lg text-white font-medium transition-colors hover:opacity-90 mb-3"
+                        style={{ backgroundColor: colors.brown }}
+                      >
+                        Tải PDF về
+                      </a>
+                      {isMobile && (
+                        <a
+                          href={exam.filePath}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-6 py-3 rounded-lg font-medium transition-colors hover:opacity-90"
+                          style={{
+                            backgroundColor: colors.light,
+                            color: colors.darkBrown,
+                          }}
+                        >
+                          Mở trong tab mới
+                        </a>
+                      )}
+                    </>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setPdfLoadError(false)}
-                    className="mt-3 px-4 py-2 rounded-lg font-medium transition-colors"
-                    style={{
-                      backgroundColor: colors.light,
-                      color: colors.darkBrown,
-                    }}
-                  >
-                    Thử lại
-                  </button>
+                  {!isMobile && (
+                    <button
+                      type="button"
+                      onClick={() => setPdfLoadError(false)}
+                      className="mt-3 px-4 py-2 rounded-lg font-medium transition-colors"
+                      style={{
+                        backgroundColor: colors.light,
+                        color: colors.darkBrown,
+                      }}
+                    >
+                      Thử lại
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -877,14 +916,28 @@ export default function TakeExamPage() {
                 type="button"
                 onClick={() => {
                   setShowResultModal(false);
-                  router.push("/student/exams");
+                  router.push(`/student/exams/${examId}/review?attemptId=${attempt?._id}`);
                 }}
                 className="px-4 py-2 rounded-lg font-medium text-white transition-colors"
                 style={{
                   backgroundColor: colors.brown,
                 }}
               >
-                Đóng
+                Xem kết quả chi tiết
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResultModal(false);
+                  router.push("/student/exams");
+                }}
+                className="px-4 py-2 rounded-lg font-medium transition-colors"
+                style={{
+                  backgroundColor: colors.light,
+                  color: colors.darkBrown,
+                }}
+              >
+                Quay lại danh sách
               </button>
             </div>
           </div>

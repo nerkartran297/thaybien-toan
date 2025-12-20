@@ -62,6 +62,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           // Attempt was submitted, clear storage
+          // Don't auto redirect - let user choose what to do next
           localStorage.removeItem(STORAGE_KEY);
         }
       } else {

@@ -26,6 +26,7 @@ export default function StudentExamsPage() {
   const [selectedGrade, setSelectedGrade] = useState<number | "Tất cả">("Tất cả");
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>([]);
 
   useEffect(() => {
@@ -84,14 +85,22 @@ export default function StudentExamsPage() {
 
   const handleStartExam = () => {
     if (selectedExam) {
+      // Show confirmation modal for first time attempt
+      setShowConfirmModal(true);
+    }
+  };
+
+  const handleConfirmStartExam = () => {
+    if (selectedExam) {
       router.push(`/student/exams/${selectedExam._id}/take`);
       setShowDetailModal(false);
+      setShowConfirmModal(false);
     }
   };
 
   const handleRetakeExam = () => {
     if (selectedExam) {
-      router.push(`/student/exams/${selectedExam._id}/take`);
+      router.push(`/student/exams/${selectedExam._id}/take?retake=true`);
       setShowDetailModal(false);
     }
   };
@@ -512,6 +521,76 @@ export default function StudentExamsPage() {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for First Time Attempt */}
+      {showConfirmModal && selectedExam && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
+          onClick={() => setShowConfirmModal(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6"
+            style={{
+              borderColor: colors.brown,
+              borderWidth: "2px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <h3
+                className="text-2xl font-bold mb-2"
+                style={{ color: colors.darkBrown }}
+              >
+                ⚠️ Xác nhận bắt đầu làm đề
+              </h3>
+              <div className="space-y-3">
+                <p className="text-base" style={{ color: colors.darkBrown }}>
+                  Bạn sắp bắt đầu làm đề thi: <strong>{selectedExam.name}</strong>
+                </p>
+                <div
+                  className="p-4 rounded-lg"
+                  style={{ backgroundColor: "#FEF3C7", borderLeft: "4px solid #F59E0B" }}
+                >
+                  <p className="text-sm font-semibold mb-2" style={{ color: "#92400E" }}>
+                    ⚠️ Lưu ý quan trọng:
+                  </p>
+                  <ul className="text-sm space-y-1" style={{ color: "#78350F" }}>
+                    <li>• Chỉ kết quả lần làm đầu tiên mới được lưu lại</li>
+                    <li>• Nếu bạn bấm nhầm và thoát ra, bạn sẽ mất cơ hội làm đề này</li>
+                    <li>• Thời gian làm bài: <strong>{selectedExam.timeLimit} phút</strong></li>
+                    <li>• Hãy đảm bảo bạn đã sẵn sàng trước khi bắt đầu</li>
+                  </ul>
+                </div>
+                <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Bạn có chắc chắn muốn bắt đầu làm đề thi này không?
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 justify-end">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="px-5 py-2.5 rounded-lg font-medium transition-all hover:opacity-80"
+                style={{
+                  backgroundColor: colors.light,
+                  color: colors.darkBrown,
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmStartExam}
+                className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
+                style={{
+                  backgroundColor: colors.brown,
+                }}
+              >
+                Xác nhận bắt đầu
+              </button>
+            </div>
           </div>
         </div>
       )}

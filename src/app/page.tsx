@@ -84,7 +84,7 @@ export default function Home() {
                 href="#"
                 className="hover:text-[#865e41] text-md transition-colors font-sans font-semibold text-[#2c3e50]"
               >
-                phuc.colorful@gmail.com
+                thaybien.toan@gmail.com
               </a>
             </div>
             <div className="flex items-center space-x-2">
@@ -101,7 +101,7 @@ export default function Home() {
                 href="#"
                 className="hover:text-[#865e41] text-md transition-colors font-sans font-semibold text-[#2c3e50]"
               >
-                096 262 14 90
+                0914484221
               </a>
             </div>
             <div className="flex items-center space-x-2">
@@ -118,7 +118,7 @@ export default function Home() {
                 href="#"
                 className="hover:text-[#865e41] text-md transition-colors font-sans font-semibold text-[#2c3e50]"
               >
-                Trần Huy Liệu, Phú Nhuận, TP.HCM
+                Thu Duc, Phu Yen, Binh Dinh
               </a>
             </div>
           </div>

@@ -37,6 +37,13 @@ export default function TeacherQuizControlPage() {
     }
   }, [session?.quizId]);
 
+  // Auto-redirect when quiz is completed
+  useEffect(() => {
+    if (session?.isCompleted) {
+      router.push(`/teacher/games/${roomId}/leaderboard`);
+    }
+  }, [session?.isCompleted, roomId, router]);
+
   // Polling: Fetch session and stats every 2 seconds
   useEffect(() => {
     if (!session || session.isCompleted) return;
@@ -170,6 +177,7 @@ export default function TeacherQuizControlPage() {
             <h2 className="text-2xl font-bold text-[#2c3e50] mb-4">
               Quiz đã hoàn thành!
             </h2>
+            <p className="text-[#6C584C] mb-4">Đang chuyển hướng...</p>
             <Link
               href={`/teacher/games/${roomId}/leaderboard`}
               className="inline-block bg-[#ADC178] text-[#2c3e50] px-6 py-2 rounded-lg hover:bg-[#A98467] hover:text-white transition-colors font-semibold"
@@ -196,14 +204,14 @@ export default function TeacherQuizControlPage() {
                         alt="Câu hỏi"
                         className="max-w-full h-auto rounded-lg border border-[#ADC178]"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
                     </div>
                   )}
-                  
+
                   {/* Only show options when question is active (for students to see) */}
-                  {session.isQuestionActive && (
+                  {/* {session.isQuestionActive && (
                     <div className="space-y-2">
                       <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
                         <strong>A:</strong> {currentQuestion.options.A}
@@ -218,10 +226,10 @@ export default function TeacherQuizControlPage() {
                         <strong>D:</strong> {currentQuestion.options.D}
                       </div>
                     </div>
-                  )}
-                  
+                  )} */}
+
                   {/* Only show correct answer and explanation after question has ended (when showing stats) */}
-                  {stats && !session.isQuestionActive && (
+                  {/* {stats && !session.isQuestionActive && (
                     <>
                       <div className="space-y-2">
                         <div className="p-3 bg-[#F0EAD2] rounded border border-[#ADC178]">
@@ -245,12 +253,13 @@ export default function TeacherQuizControlPage() {
                       </div>
                       {currentQuestion.explanation && (
                         <div className="mt-2 p-3 bg-[#F0EAD2] rounded">
-                          <strong>Giải thích:</strong> {currentQuestion.explanation}
+                          <strong>Giải thích:</strong>{" "}
+                          {currentQuestion.explanation}
                         </div>
                       )}
                     </>
-                  )}
-                  
+                  )} */}
+
                   <div className="mt-2 text-sm text-[#6C584C]">
                     Thời gian: {currentQuestion.timeLimit} giây
                   </div>
@@ -347,4 +356,3 @@ export default function TeacherQuizControlPage() {
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-const { MongoClient, ObjectId } = require('mongodb');
+const { MongoClient } = require('mongodb');
 const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: '.env.local' });
 
@@ -113,17 +113,41 @@ function generateClasses() {
     const numClasses = Math.floor(Math.random() * 2) + 2;
     
     for (let i = 0; i < numClasses; i++) {
-      const timeSlot = timeSlots[Math.floor(Math.random() * timeSlots.length)];
-      const dayOfWeek = Math.floor(Math.random() * 5) + 1; // Monday to Friday (1-5)
+      // Each class must have 2-3 sessions per week
+      const numSessions = Math.floor(Math.random() * 2) + 2; // 2 or 3 sessions (50% each)
       
-      classes.push({
-        name: `Lớp ${grade} - ${dayNames[dayOfWeek]} ${timeSlot.start}`,
-        grade,
-        sessions: [{
+      const sessions = [];
+      const usedDays = new Set(); // Track used days to ensure no duplicate days
+      
+      for (let j = 0; j < numSessions; j++) {
+        let dayOfWeek;
+        let attempts = 0;
+        // Ensure different days for sessions in the same class
+        do {
+          dayOfWeek = Math.floor(Math.random() * 5) + 1; // Monday to Friday (1-5)
+          attempts++;
+          // Prevent infinite loop - if all days are used, just use any day
+          if (attempts > 20) break;
+        } while (usedDays.has(dayOfWeek));
+        
+        usedDays.add(dayOfWeek);
+        const timeSlot = timeSlots[Math.floor(Math.random() * timeSlots.length)];
+        
+        sessions.push({
           dayOfWeek,
           startTime: timeSlot.start,
           endTime: timeSlot.end
-        }],
+        });
+      }
+      
+      // Sort sessions by dayOfWeek for consistency
+      sessions.sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+      
+      const sessionNames = sessions.map(s => `${dayNames[s.dayOfWeek]} ${s.startTime}`).join(', ');
+      classes.push({
+        name: `Lớp ${grade} - ${sessionNames}`,
+        grade,
+        sessions,
         enrolledStudents: [],
         isActive: true,
         createdAt: new Date(),
@@ -153,26 +177,30 @@ async function seedSampleData() {
     console.log(`📦 Sử dụng database: ${databaseName}`);
     const db = client.db(databaseName);
 
-    // Check if data already exists (allow if only a few students from manual registration)
+    // Check if data already exists and clear if needed
     const existingStudents = await db.collection('users').countDocuments({ role: 'student' });
     const existingClasses = await db.collection('classes').countDocuments();
     const existingEnrollments = await db.collection('enrollments').countDocuments();
     const existingAttendance = await db.collection('attendance').countDocuments();
     
-    // Allow seeding if only a few students (likely from manual registration) and no classes/enrollments
-    if (existingStudents > 5 || existingClasses > 0 || existingEnrollments > 0 || existingAttendance > 0) {
+    // If there's existing data, clear it first
+    if (existingStudents > 0 || existingClasses > 0 || existingEnrollments > 0 || existingAttendance > 0) {
       console.log('\n⚠️  Đã có dữ liệu trong database:');
       console.log(`   - ${existingStudents} học sinh`);
       console.log(`   - ${existingClasses} lớp học`);
       console.log(`   - ${existingEnrollments} enrollments`);
       console.log(`   - ${existingAttendance} attendance records`);
-      console.log('\nĐể seed lại, vui lòng xóa dữ liệu cũ trước.');
-      return;
-    }
-    
-    if (existingStudents > 0) {
-      console.log(`\n⚠️  Đã có ${existingStudents} học sinh trong database (có thể từ đăng ký thủ công)`);
-      console.log('Tiếp tục seed thêm dữ liệu...\n');
+      console.log('\n🗑️  Đang xóa dữ liệu cũ...');
+      
+      // Clear old data
+      await db.collection('users').deleteMany({ role: 'student' });
+      await db.collection('classes').deleteMany({});
+      await db.collection('enrollments').deleteMany({});
+      await db.collection('attendance').deleteMany({});
+      await db.collection('absences').deleteMany({});
+      await db.collection('makeups').deleteMany({});
+      
+      console.log('✅ Đã xóa dữ liệu cũ\n');
     }
 
     // Get required data
@@ -237,11 +265,13 @@ async function seedSampleData() {
     console.log(`✅ Đã tạo ${classIds.length} lớp học`);
 
     // Step 3: Create enrollments
+    // CONSTRAINT: Mỗi học sinh chỉ được học một lớp, một khóa thôi
     console.log('\n📝 Bước 3: Tạo enrollments...');
     const enrollmentsToInsert = [];
     const now = new Date();
     
-    studentIds.forEach((studentId, index) => {
+    // Each student gets exactly ONE enrollment (one course, one class)
+    studentIds.forEach((studentId) => {
       const course = courses[Math.floor(Math.random() * courses.length)];
       const frequency = Math.random() > 0.5 ? 2 : 1; // 50% chance of 2 sessions/week
       const paymentMode = Math.random() > 0.8 ? 'custom' : 'default'; // 20% custom
@@ -286,16 +316,50 @@ async function seedSampleData() {
     console.log(`✅ Đã tạo ${enrollmentIds.length} enrollments`);
 
     // Step 4: Add students to classes
+    // CONSTRAINT: Mỗi học sinh chỉ được học một lớp thôi
     console.log('\n📝 Bước 4: Thêm học sinh vào lớp...');
     let studentsAddedToClasses = 0;
     const classUpdates = [];
+    const assignedStudents = new Set(); // Track which students are already assigned to a class
     
-    classIds.forEach((classId, classIndex) => {
-      const classData = classesToInsert[classIndex];
-      // Each class gets 3-7 students
+    // Shuffle classes to distribute students randomly
+    const shuffledClassIds = [...classIds].sort(() => Math.random() - 0.5);
+    const shuffledStudentIds = [...studentIds].sort(() => Math.random() - 0.5);
+    
+    // Assign each student to exactly ONE class
+    let studentIndex = 0;
+    shuffledClassIds.forEach((classId) => {
+      // Each class gets 3-7 students, but only from unassigned students
       const numStudentsInClass = Math.floor(Math.random() * 5) + 3;
-      const shuffledStudents = [...studentIds].sort(() => Math.random() - 0.5);
-      const studentsForClass = shuffledStudents.slice(0, Math.min(numStudentsInClass, shuffledStudents.length));
+      const studentsForClass = [];
+      
+      // Assign students to this class, ensuring each student is only in one class
+      for (let i = 0; i < numStudentsInClass && studentIndex < shuffledStudentIds.length; i++) {
+        const studentId = shuffledStudentIds[studentIndex];
+        const studentIdStr = studentId.toString ? studentId.toString() : String(studentId);
+        
+        // Skip if student is already assigned
+        if (!assignedStudents.has(studentIdStr)) {
+          studentsForClass.push(studentId);
+          assignedStudents.add(studentIdStr);
+          studentIndex++;
+        } else {
+          // Find next unassigned student
+          let found = false;
+          for (let j = studentIndex + 1; j < shuffledStudentIds.length; j++) {
+            const nextStudentId = shuffledStudentIds[j];
+            const nextStudentIdStr = nextStudentId.toString ? nextStudentId.toString() : String(nextStudentId);
+            if (!assignedStudents.has(nextStudentIdStr)) {
+              studentsForClass.push(nextStudentId);
+              assignedStudents.add(nextStudentIdStr);
+              studentIndex = j + 1;
+              found = true;
+              break;
+            }
+          }
+          if (!found) break; // No more unassigned students
+        }
+      }
       
       if (studentsForClass.length > 0) {
         classUpdates.push({
@@ -317,7 +381,7 @@ async function seedSampleData() {
         )
       );
     }
-    console.log(`✅ Đã thêm ${studentsAddedToClasses} học sinh vào các lớp`);
+    console.log(`✅ Đã thêm ${studentsAddedToClasses} học sinh vào các lớp (mỗi học sinh chỉ ở 1 lớp)`);
 
     // Step 5: Create attendance records
     console.log('\n📝 Bước 5: Tạo attendance records...');

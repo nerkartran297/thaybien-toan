@@ -6,7 +6,7 @@ import { StudentEnrollment } from "@/models/StudentEnrollment";
 import { User } from "@/models/User";
 import { Attendance, CreateAttendanceData } from "@/models/Attendance";
 import { useAuth } from "@/contexts/AuthContext";
-import { showError } from "@/lib/toast";
+import { showError, showSuccess } from "@/lib/toast";
 
 // Color palette
 const colors = {
@@ -461,21 +461,17 @@ export default function WeekCalendar({
               Giờ học
             </div>
             {weekDates.map((date, index) => {
-              const isStartDate = isFirstDayOfEnrollment(date);
               const hasAttendance = hasAttendanceOnDate(date);
               return (
                 <div
                   key={index}
-                  className={`p-2 text-center border-r-2 last:border-r-0 border-b-2 ${
-                    isStartDate ? "ring-4 ring-yellow-400" : ""
-                  }`}
+                  className={`p-2 text-center border-r-2 last:border-r-0 border-b-2`}
                   style={{
                     borderColor: colors.brown,
                     color: colors.darkBrown,
-                    backgroundColor:
-                      hasAttendance && !isStartDate
-                        ? colors.mediumGreen
-                        : colors.lightGreen,
+                    backgroundColor: hasAttendance
+                      ? colors.mediumGreen
+                      : colors.lightGreen,
                   }}
                 >
                   <div className="font-semibold">
@@ -1548,11 +1544,7 @@ function ClassActionModal({
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
   const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [savingAttendance, setSavingAttendance] = useState<string | null>(null);
-  const [confirmAttendance, setConfirmAttendance] = useState<{
-    studentId: string;
-    studentName: string;
-    status: "present" | "absent" | "excused";
-  } | null>(null);
+  // Removed confirmAttendance state - no confirmation modal needed
   const { user } = useAuth();
 
   // Helper function to format date as yyyy-mm-dd in local timezone (GMT+7)
@@ -1722,25 +1714,9 @@ function ClassActionModal({
     checkDate.setHours(0, 0, 0, 0);
 
     // Regular students (enrolled)
-    // Filter students who were enrolled before or on the class date
-    // Check attendance records with status "excused" for absence status
+    // Show ALL students in the class, regardless of enrollment startDate
+    // The enrollment startDate filter was causing students to disappear
     const regularStudents = students
-      .filter((student) => {
-        const studentId = student._id?.toString() || "";
-        // Find enrollment for this student
-        const enrollment = enrollments.find(
-          (e) => e.studentId.toString() === studentId
-        );
-
-        // If no enrollment found, still show the student (fallback)
-        // This can happen if enrollment hasn't been fetched yet or student was just added
-        if (!enrollment) return true;
-
-        // Check if class date is on or after enrollment startDate
-        const enrollmentStartDate = new Date(enrollment.startDate);
-        enrollmentStartDate.setHours(0, 0, 0, 0);
-        return checkDate >= enrollmentStartDate;
-      })
       .map((student) => {
         const studentId = student._id?.toString() || "";
         const hasAbsence = propAttendanceRecords.some((att) => {
@@ -1755,7 +1731,13 @@ function ClassActionModal({
           return attDateStr === checkDateStr;
         });
         return { ...student, hasAbsence };
-      });
+      })
+      // Remove duplicates based on student ID
+      .filter(
+        (student, index, self) =>
+          index ===
+          self.findIndex((s) => s._id?.toString() === student._id?.toString())
+      );
 
     return { regular: regularStudents, makeup: makeupStudents };
   };
@@ -1841,12 +1823,13 @@ function ClassActionModal({
   };
 
   // Handle marking attendance (with confirmation)
-  const handleMarkAttendanceClick = (
+  const handleMarkAttendanceClick = async (
     studentId: string,
     studentName: string,
     status: "present" | "absent" | "excused"
   ) => {
-    setConfirmAttendance({ studentId, studentName, status });
+    // Directly mark attendance without confirmation modal
+    await handleMarkAttendance(studentId, status);
   };
 
   // Handle marking attendance (actual API call)
@@ -1916,6 +1899,7 @@ function ClassActionModal({
             const refreshed = await refreshResponse.json();
             setAttendanceRecords(refreshed);
           }
+          showSuccess("Đã cập nhật điểm danh");
         } else {
           const error = await response.json();
           showError(`Lỗi: ${error.error}`);
@@ -1949,6 +1933,7 @@ function ClassActionModal({
             const refreshed = await refreshResponse.json();
             setAttendanceRecords(refreshed);
           }
+          showSuccess("Đã điểm danh");
         } else {
           const error = await response.json();
 
@@ -2291,93 +2276,83 @@ function ClassActionModal({
                                     )}
                                   </div>
                                   {type === "attendance" && (
-                                    <div className="flex items-center gap-2">
-                                      {currentStatus ? (
-                                        <div
-                                          className="px-4 py-2 rounded-lg text-sm font-medium"
-                                          style={{
-                                            backgroundColor:
-                                              currentStatus === "present"
-                                                ? "#10B981"
-                                                : currentStatus === "absent"
-                                                ? "#DC2626"
-                                                : "#F59E0B",
-                                            color: "white",
-                                          }}
-                                        >
-                                          {currentStatus === "present"
-                                            ? "C"
-                                            : currentStatus === "absent"
-                                            ? "K"
-                                            : "P"}
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <button
-                                            onClick={() =>
-                                              handleMarkAttendanceClick(
-                                                studentId,
-                                                student.fullName,
-                                                "present"
-                                              )
-                                            }
-                                            disabled={isSaving}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                              isSaving
-                                                ? "cursor-not-allowed opacity-50"
-                                                : "cursor-pointer hover:opacity-75"
-                                            }`}
-                                            style={{
-                                              backgroundColor: "#10B981",
-                                              color: "white",
-                                            }}
-                                          >
-                                            ✅ Có
-                                          </button>
-                                          <button
-                                            onClick={() =>
-                                              handleMarkAttendanceClick(
-                                                studentId,
-                                                student.fullName,
-                                                "absent"
-                                              )
-                                            }
-                                            disabled={isSaving}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                              isSaving
-                                                ? "cursor-not-allowed opacity-50"
-                                                : "cursor-pointer hover:opacity-75"
-                                            }`}
-                                            style={{
-                                              backgroundColor: "#DC2626",
-                                              color: "white",
-                                            }}
-                                          >
-                                            ❌ Vắng
-                                          </button>
-                                          <button
-                                            onClick={() =>
-                                              handleMarkAttendanceClick(
-                                                studentId,
-                                                student.fullName,
-                                                "excused"
-                                              )
-                                            }
-                                            disabled={isSaving}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                              isSaving
-                                                ? "cursor-not-allowed opacity-50"
-                                                : "cursor-pointer hover:opacity-75"
-                                            }`}
-                                            style={{
-                                              backgroundColor: "#F59E0B",
-                                              color: "white",
-                                            }}
-                                          >
-                                            ⚠️ Có phép
-                                          </button>
-                                        </>
-                                      )}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {/* Always show all buttons - highlight current status */}
+                                      <button
+                                        onClick={() =>
+                                          handleMarkAttendanceClick(
+                                            studentId,
+                                            student.fullName,
+                                            "present"
+                                          )
+                                        }
+                                        disabled={isSaving}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                          isSaving
+                                            ? "cursor-not-allowed opacity-50"
+                                            : "cursor-pointer hover:opacity-75"
+                                        } ${
+                                          currentStatus === "present"
+                                            ? "ring-2 ring-offset-2 ring-green-500"
+                                            : ""
+                                        }`}
+                                        style={{
+                                          backgroundColor: "#10B981",
+                                          color: "white",
+                                        }}
+                                      >
+                                        ✅ Có
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleMarkAttendanceClick(
+                                            studentId,
+                                            student.fullName,
+                                            "absent"
+                                          )
+                                        }
+                                        disabled={isSaving}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                          isSaving
+                                            ? "cursor-not-allowed opacity-50"
+                                            : "cursor-pointer hover:opacity-75"
+                                        } ${
+                                          currentStatus === "absent"
+                                            ? "ring-2 ring-offset-2 ring-red-500"
+                                            : ""
+                                        }`}
+                                        style={{
+                                          backgroundColor: "#DC2626",
+                                          color: "white",
+                                        }}
+                                      >
+                                        ❌ Vắng
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleMarkAttendanceClick(
+                                            studentId,
+                                            student.fullName,
+                                            "excused"
+                                          )
+                                        }
+                                        disabled={isSaving}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                          isSaving
+                                            ? "cursor-not-allowed opacity-50"
+                                            : "cursor-pointer hover:opacity-75"
+                                        } ${
+                                          currentStatus === "excused"
+                                            ? "ring-2 ring-offset-2 ring-yellow-500"
+                                            : ""
+                                        }`}
+                                        style={{
+                                          backgroundColor: "#F59E0B",
+                                          color: "white",
+                                        }}
+                                      >
+                                        ⚠️ Có phép
+                                      </button>
                                     </div>
                                   )}
                                 </div>
@@ -2428,93 +2403,83 @@ function ClassActionModal({
                                   </span>
                                 </div>
                                 {type === "attendance" && (
-                                  <div className="flex items-center gap-2">
-                                    {currentStatus ? (
-                                      <div
-                                        className="px-4 py-2 rounded-lg text-sm font-medium"
-                                        style={{
-                                          backgroundColor:
-                                            currentStatus === "present"
-                                              ? "#10B981"
-                                              : currentStatus === "absent"
-                                              ? "#DC2626"
-                                              : "#F59E0B",
-                                          color: "white",
-                                        }}
-                                      >
-                                        {currentStatus === "present"
-                                          ? "C"
-                                          : currentStatus === "absent"
-                                          ? "K"
-                                          : "P"}
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <button
-                                          onClick={() =>
-                                            handleMarkAttendanceClick(
-                                              studentId,
-                                              makeup.fullName || "Học sinh",
-                                              "present"
-                                            )
-                                          }
-                                          disabled={isSaving}
-                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                            isSaving
-                                              ? "cursor-not-allowed opacity-50"
-                                              : "cursor-pointer hover:opacity-75"
-                                          }`}
-                                          style={{
-                                            backgroundColor: "#10B981",
-                                            color: "white",
-                                          }}
-                                        >
-                                          ✅ Có
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            handleMarkAttendanceClick(
-                                              studentId,
-                                              makeup.fullName || "Học sinh",
-                                              "absent"
-                                            )
-                                          }
-                                          disabled={isSaving}
-                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                            isSaving
-                                              ? "cursor-not-allowed opacity-50"
-                                              : "cursor-pointer hover:opacity-75"
-                                          }`}
-                                          style={{
-                                            backgroundColor: "#DC2626",
-                                            color: "white",
-                                          }}
-                                        >
-                                          ❌ Vắng
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            handleMarkAttendanceClick(
-                                              studentId,
-                                              makeup.fullName || "Học sinh",
-                                              "excused"
-                                            )
-                                          }
-                                          disabled={isSaving}
-                                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                            isSaving
-                                              ? "cursor-not-allowed opacity-50"
-                                              : "cursor-pointer hover:opacity-75"
-                                          }`}
-                                          style={{
-                                            backgroundColor: "#F59E0B",
-                                            color: "white",
-                                          }}
-                                        >
-                                          ⚠️ Có phép
-                                        </button>
-                                      </>
-                                    )}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {/* Always show all buttons - highlight current status */}
+                                    <button
+                                      onClick={() =>
+                                        handleMarkAttendanceClick(
+                                          studentId,
+                                          makeup.fullName || "Học sinh",
+                                          "present"
+                                        )
+                                      }
+                                      disabled={isSaving}
+                                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                        isSaving
+                                          ? "cursor-not-allowed opacity-50"
+                                          : "cursor-pointer hover:opacity-75"
+                                      } ${
+                                        currentStatus === "present"
+                                          ? "ring-2 ring-offset-2 ring-green-500"
+                                          : ""
+                                      }`}
+                                      style={{
+                                        backgroundColor: "#10B981",
+                                        color: "white",
+                                      }}
+                                    >
+                                      ✅ Có
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleMarkAttendanceClick(
+                                          studentId,
+                                          makeup.fullName || "Học sinh",
+                                          "absent"
+                                        )
+                                      }
+                                      disabled={isSaving}
+                                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                        isSaving
+                                          ? "cursor-not-allowed opacity-50"
+                                          : "cursor-pointer hover:opacity-75"
+                                      } ${
+                                        currentStatus === "absent"
+                                          ? "ring-2 ring-offset-2 ring-red-500"
+                                          : ""
+                                      }`}
+                                      style={{
+                                        backgroundColor: "#DC2626",
+                                        color: "white",
+                                      }}
+                                    >
+                                      ❌ Vắng
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleMarkAttendanceClick(
+                                          studentId,
+                                          makeup.fullName || "Học sinh",
+                                          "excused"
+                                        )
+                                      }
+                                      disabled={isSaving}
+                                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                        isSaving
+                                          ? "cursor-not-allowed opacity-50"
+                                          : "cursor-pointer hover:opacity-75"
+                                      } ${
+                                        currentStatus === "excused"
+                                          ? "ring-2 ring-offset-2 ring-yellow-500"
+                                          : ""
+                                      }`}
+                                      style={{
+                                        backgroundColor: "#F59E0B",
+                                        color: "white",
+                                      }}
+                                    >
+                                      ⚠️ Có phép
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -2673,61 +2638,7 @@ function ClassActionModal({
           </div>
         )}
 
-        {/* Confirmation Modal for Attendance */}
-        {confirmAttendance && (
-          <div
-            className="fixed inset-0 flex items-center justify-center z-[200]"
-            style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
-            onClick={() => setConfirmAttendance(null)}
-          >
-            <div
-              className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3
-                className="text-lg font-semibold mb-4"
-                style={{ color: colors.darkBrown }}
-              >
-                Xác nhận điểm danh
-              </h3>
-              <p className="mb-4" style={{ color: colors.brown }}>
-                Bạn có chắc chắn muốn đánh dấu{" "}
-                <strong>{confirmAttendance.studentName}</strong> là{" "}
-                {confirmAttendance.status === "present"
-                  ? "✅ Có đi học"
-                  : confirmAttendance.status === "absent"
-                  ? "❌ Vắng không phép"
-                  : "⚠️ Vắng có phép"}
-                ?
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setConfirmAttendance(null)}
-                  className="px-4 py-2 rounded-lg font-medium transition-all"
-                  style={{
-                    backgroundColor: colors.light,
-                    color: colors.darkBrown,
-                  }}
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={async () => {
-                    await handleMarkAttendance(
-                      confirmAttendance.studentId,
-                      confirmAttendance.status
-                    );
-                    setConfirmAttendance(null);
-                  }}
-                  className="px-4 py-2 rounded-lg font-medium text-white transition-all"
-                  style={{ backgroundColor: colors.mediumGreen }}
-                >
-                  Xác nhận
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Confirmation Modal removed - direct attendance marking */}
 
         {/* Action Buttons */}
         <div

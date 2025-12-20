@@ -43,44 +43,63 @@ export default function StudentQuizPage() {
   const [stats, setStats] = useState<QuizStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const checkIfAnswered = useCallback(async () => {
-    if (!session || !user) return;
+  const checkIfAnswered = useCallback(
+    async (questionIndex?: number) => {
+      if (!session || !user) return;
 
-    try {
-      // Check if student has answered by fetching their answer for current question
-      const response = await fetch(
-        `/api/games/rooms/${roomId}/quiz/answer/check?questionIndex=${session.currentQuestionIndex}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data.hasAnswered) {
-          setHasAnswered(true);
-          setSelectedAnswer(data.answer);
+      // Use provided questionIndex or current session questionIndex
+      const targetQuestionIndex = questionIndex ?? session.currentQuestionIndex;
+
+      try {
+        // Check if student has answered by fetching their answer for current question
+        const response = await fetch(
+          `/api/games/rooms/${roomId}/quiz/answer/check?questionIndex=${targetQuestionIndex}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          // Only update state if this is for the current question
+          if (
+            data.hasAnswered &&
+            targetQuestionIndex === session.currentQuestionIndex
+          ) {
+            setHasAnswered(true);
+            setSelectedAnswer(data.answer);
+          }
         }
+      } catch (error) {
+        // Silently fail - not critical
+        console.error("Error checking if answered:", error);
       }
-    } catch (error) {
-      // Silently fail - not critical
-      console.error("Error checking if answered:", error);
-    }
-  }, [session, user, roomId]);
+    },
+    [session, user, roomId]
+  );
 
   const fetchSession = useCallback(async () => {
     try {
       const response = await fetch(`/api/games/rooms/${roomId}/quiz/session`);
       if (response.ok) {
         const data = await response.json();
-        setSession((prevSession) => {
-          // Reset answer state when question changes
-          if (data.currentQuestionIndex !== prevSession?.currentQuestionIndex) {
-            setSelectedAnswer(null);
-            setHasAnswered(false);
-            setStats(null);
-          }
-          return data;
-        });
-        // Check if student has already answered current question
-        if (data.isQuestionActive && data.questionStartTime) {
-          checkIfAnswered();
+        const prevQuestionIndex = session?.currentQuestionIndex;
+
+        // Reset answer state when question changes - do this BEFORE updating session
+        if (data.currentQuestionIndex !== prevQuestionIndex) {
+          setSelectedAnswer(null);
+          setHasAnswered(false);
+          setStats(null);
+        }
+
+        setSession(data);
+
+        // Check if student has already answered current question - only for NEW question
+        if (
+          data.isQuestionActive &&
+          data.questionStartTime &&
+          data.currentQuestionIndex !== prevQuestionIndex
+        ) {
+          // Use setTimeout to ensure state is reset before checking
+          setTimeout(() => {
+            checkIfAnswered(data.currentQuestionIndex);
+          }, 100);
         }
       }
     } catch (error) {
@@ -88,7 +107,7 @@ export default function StudentQuizPage() {
     } finally {
       setLoading(false);
     }
-  }, [roomId, checkIfAnswered]);
+  }, [roomId, session?.currentQuestionIndex, checkIfAnswered]);
 
   const fetchQuiz = useCallback(async () => {
     if (!session?.quizId) return;
@@ -129,8 +148,12 @@ export default function StudentQuizPage() {
       fetchSession();
       if (session.isQuestionActive && session.questionStartTime) {
         updateTimer();
+        // Only check if answered for current question - fetchSession will handle reset
         if (!hasAnswered) {
-          checkIfAnswered();
+          // Small delay to ensure state is reset first
+          setTimeout(() => {
+            checkIfAnswered();
+          }, 200);
         }
       }
       if (session.isQuestionActive) {
@@ -140,7 +163,12 @@ export default function StudentQuizPage() {
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.isQuestionActive, session?.isCompleted, hasAnswered]);
+  }, [
+    session?.isQuestionActive,
+    session?.isCompleted,
+    session?.currentQuestionIndex,
+    hasAnswered,
+  ]);
 
   // Timer countdown
   useEffect(() => {
@@ -224,6 +252,13 @@ export default function StudentQuizPage() {
     }
   };
 
+  // Auto-redirect when quiz is completed
+  useEffect(() => {
+    if (session?.isCompleted) {
+      router.push(`/student/games/${roomId}`);
+    }
+  }, [session?.isCompleted, roomId, router]);
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFFBF7]">
@@ -257,6 +292,7 @@ export default function StudentQuizPage() {
             <h2 className="text-2xl font-bold text-[#2c3e50] mb-4">
               Quiz đã hoàn thành!
             </h2>
+            <p className="text-[#6C584C] mb-4">Đang chuyển hướng...</p>
             <Link
               href={`/student/games/${roomId}`}
               className="inline-block bg-[#ADC178] text-[#2c3e50] px-6 py-2 rounded-lg hover:bg-[#A98467] hover:text-white transition-colors font-semibold"

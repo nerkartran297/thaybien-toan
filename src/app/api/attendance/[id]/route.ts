@@ -76,3 +76,40 @@ export async function PUT(
   }
 }
 
+// DELETE /api/attendance/[id] - Delete attendance
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const db = await getDatabase();
+
+    // Check if attendance exists
+    const existingAttendance = await db
+      .collection<Attendance>('attendance')
+      .findOne({ _id: new ObjectId(id) });
+
+    if (!existingAttendance) {
+      return NextResponse.json({ error: 'Attendance not found' }, { status: 404 });
+    }
+
+    // Delete attendance
+    const result = await db
+      .collection<Attendance>('attendance')
+      .deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: 'Attendance not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Attendance deleted' });
+  } catch (error) {
+    console.error('Error deleting attendance:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete attendance' },
+      { status: 500 }
+    );
+  }
+}
+

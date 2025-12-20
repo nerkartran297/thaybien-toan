@@ -2,15 +2,24 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useExam } from "@/contexts/ExamContext";
 
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, logout, loading } = useAuth();
   const { isExamInProgress } = useExam();
-  const examInProgress = isExamInProgress();
+
+  // Prevent hydration mismatch by only checking exam status after mount
+  // On server, examInProgress will always be false
+  const examInProgress = mounted ? isExamInProgress() : false;
+
+  // Prevent hydration mismatch by only rendering client-specific content after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <nav className="sticky top-0 flex justify-between items-center px-8 py-2 border-b bg-[#EFEBDF] border-[#FACE84] z-40">

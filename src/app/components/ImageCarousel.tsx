@@ -5,6 +5,7 @@ import Image from "next/image";
 
 export default function ImageCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   const images = [
     {
@@ -30,6 +31,7 @@ export default function ImageCarousel() {
   ];
 
   useEffect(() => {
+    setMounted(true);
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
     }, 4000); // Change image every 4 seconds
@@ -39,13 +41,16 @@ export default function ImageCarousel() {
 
   return (
     <div className="relative w-full h-full">
-      {images.map((image, index) => (
-        <div
-          key={index}
-          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-            index === currentIndex ? "opacity-100" : "opacity-0"
-          }`}
-        >
+      {images.map((image, index) => {
+        // On server, always show first image. On client after mount, use currentIndex
+        const isVisible = !mounted ? index === 0 : index === currentIndex;
+        return (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              isVisible ? "opacity-100" : "opacity-0"
+            }`}
+          >
           <div className="w-full h-full relative">
             <Image
               src={image.src}
@@ -69,21 +74,26 @@ export default function ImageCarousel() {
             </div> */}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Carousel Indicators */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
-        {images.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentIndex(index)}
-            className={`w-3 h-3 rounded-full transition-opacity duration-300 ${
-              index === currentIndex
-                ? "bg-white opacity-100"
-                : "bg-white/50 opacity-50"
-            }`}
-          />
-        ))}
+        {images.map((_, index) => {
+          // On server, highlight first indicator. On client after mount, use currentIndex
+          const isActive = !mounted ? index === 0 : index === currentIndex;
+          return (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`w-3 h-3 rounded-full transition-opacity duration-300 ${
+                isActive
+                  ? "bg-white opacity-100"
+                  : "bg-white/50 opacity-50"
+              }`}
+            />
+          );
+        })}
       </div>
     </div>
   );
