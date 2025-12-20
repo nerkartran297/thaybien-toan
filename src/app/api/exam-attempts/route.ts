@@ -75,8 +75,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const examId = searchParams.get('examId');
+    const roomId = searchParams.get('roomId');
     const role = searchParams.get('role');
-      const db = await getDatabase();
+    const db = await getDatabase();
 
     // Check if teacher is requesting all attempts for an exam
     if (role === 'teacher' && examId) {
@@ -115,6 +116,9 @@ export async function GET(request: NextRequest) {
     let query: any = { studentId: new ObjectId(auth.userId) };
     if (examId) {
       query.examId = new ObjectId(examId);
+    }
+    if (roomId) {
+      query.roomId = new ObjectId(roomId);
     }
 
     const attempts = await db
@@ -173,7 +177,7 @@ export async function POST(request: NextRequest) {
     // Initialize answers array with null values
     const initialAnswers: (string | null)[] = new Array(totalQuestions).fill(null);
 
-    const attempt: ExamAttempt = {
+    const attempt: any = {
       examId: new ObjectId(data.examId),
       studentId: new ObjectId(auth.userId),
       answers: initialAnswers,
@@ -183,6 +187,11 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
+    // Add roomId if provided (for synchronized exams)
+    if (data.roomId) {
+      attempt.roomId = new ObjectId(data.roomId);
+    }
+
     const result = await db.collection<ExamAttempt>('examAttempts').insertOne(attempt);
 
     return NextResponse.json(
@@ -191,6 +200,7 @@ export async function POST(request: NextRequest) {
         _id: result.insertedId.toString(),
         examId: attempt.examId.toString(),
         studentId: attempt.studentId.toString(),
+        roomId: attempt.roomId?.toString(),
       },
       { status: 201 }
     );

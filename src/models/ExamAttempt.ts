@@ -5,6 +5,7 @@ export interface ExamAttempt {
   _id?: ObjectId;
   examId: ObjectId; // ID của đề thi
   studentId: ObjectId; // ID của học sinh làm bài
+  roomId?: ObjectId; // ID của room (for synchronized exams)
   answers: (AnswerOption | null)[]; // Đáp án học sinh chọn (có thể null nếu chưa chọn)
   score?: number; // Điểm số (tổng số câu đúng)
   totalQuestions: number; // Tổng số câu hỏi
@@ -17,9 +18,10 @@ export interface ExamAttempt {
 
 export interface CreateExamAttemptData {
   examId: string;
-  studentId: string;
-  answers: (AnswerOption | null)[];
-  startedAt: Date;
+  studentId?: string; // Optional, will use authenticated user
+  roomId?: string; // Optional, for synchronized exams
+  answers?: (AnswerOption | null)[];
+  startedAt: Date | string;
 }
 
 export interface SubmitExamAttemptData {

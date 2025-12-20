@@ -81,6 +81,36 @@ export default function Navigation() {
                       Luyện đề
                     </Link>
                   )}
+                  {examInProgress ? (
+                    <span
+                      className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                      title="Đang làm bài thi, không thể chuyển trang"
+                    >
+                      Hoạt động
+                    </span>
+                  ) : (
+                    <Link
+                      href="/student/games"
+                      className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                    >
+                      Hoạt động
+                    </Link>
+                  )}
+                  {examInProgress ? (
+                    <span
+                      className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                      title="Đang làm bài thi, không thể chuyển trang"
+                    >
+                      Bảng Xếp Hạng
+                    </span>
+                  ) : (
+                    <Link
+                      href="/student/leaderboard"
+                      className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                    >
+                      Bảng Xếp Hạng
+                    </Link>
+                  )}
                 </>
               )}
               {examInProgress ? (
@@ -172,6 +202,18 @@ export default function Navigation() {
                     className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
                   >
                     Quản lý đề
+                  </Link>
+                  <Link
+                    href="/teacher/games"
+                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
+                  >
+                    Hoạt động
+                  </Link>
+                  <Link
+                    href="/teacher/leaderboard"
+                    className="block px-4 py-2 text-sm text-[#654321] hover:bg-[#D4A047]/10 hover:text-[#D4A047] transition-colors"
+                  >
+                    Bảng Xếp Hạng
                   </Link>
                 </div>
               </div>

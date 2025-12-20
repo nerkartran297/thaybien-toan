@@ -63,20 +63,6 @@ export default function DocumentViewerPage() {
     }
   };
 
-  const handleDownload = () => {
-    if (pdfUrl && document) {
-      // Create a temporary link to download the file
-      const link = document.createElement("a");
-      link.href = pdfUrl;
-      link.download = document.fileName || document.name + ".pdf";
-      if (typeof window !== "undefined") {
-        window.document.body.appendChild(link);
-        link.click();
-        window.document.body.removeChild(link);
-      }
-    }
-  };
-
   if (authLoading || loading) {
     return (
       <div
@@ -152,34 +138,6 @@ export default function DocumentViewerPage() {
                   </span>
                 )}
               </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleDownload}
-                className="px-4 py-2 rounded-lg transition-colors font-medium"
-                style={{
-                  backgroundColor: colors.mediumGreen,
-                  color: "white",
-                }}
-              >
-                ⬇️ Tải xuống
-              </button>
-              <button
-                onClick={() =>
-                  router.push(
-                    user?.role === "student"
-                      ? "/student/documents"
-                      : "/teacher/documents"
-                  )
-                }
-                className="px-4 py-2 rounded-lg transition-colors font-medium"
-                style={{
-                  backgroundColor: colors.brown,
-                  color: "white",
-                }}
-              >
-                Quay lại
-              </button>
             </div>
           </div>
           {document.note && (
@@ -345,8 +303,8 @@ export default function DocumentViewerPage() {
               >
                 <p className="text-sm">
                   <strong>Lưu ý:</strong> Bạn có thể tải xuống tài liệu bằng nút
-                  "Tải xuống" ở trên hoặc sử dụng chức năng in/save của trình
-                  duyệt.
+                  &quot;Tải xuống&quot; ở trên hoặc sử dụng chức năng in/save
+                  của trình duyệt.
                 </p>
               </div>
             </div>
