@@ -1602,42 +1602,9 @@ function ClassActionModal({
             }
           }
 
-          // Fetch enrollments for all students in this class
-          // Important: Find enrollment by courseId (not just active status)
-          // because enrollment might be completed but still need attendance marking
-          // Also fetch for edit mode to filter students correctly
-          const enrollmentPromises = classData.enrolledStudents.map(
-            async (studentId) => {
-              try {
-                const response = await fetch(
-                  `/api/enrollments?studentId=${studentId}`
-                );
-                if (response.ok) {
-                  const allEnrollments = await response.json();
-                  // Get the most recent active/pending enrollment
-                  const activeEnrollment = allEnrollments.find(
-                    (e: StudentEnrollment) =>
-                      e.status === "active" || e.status === "pending"
-                  );
-                  if (activeEnrollment) {
-                    return activeEnrollment;
-                  }
-                  // If still not found, get the most recent enrollment (even if completed)
-                  return allEnrollments[0] || null;
-                }
-              } catch (error) {
-                console.error(
-                  `Error fetching enrollment for student ${studentId}:`,
-                  error
-                );
-              }
-              return null;
-            }
-          );
-          const enrollmentData = await Promise.all(enrollmentPromises);
-          setEnrollments(
-            enrollmentData.filter((e) => e !== null) as StudentEnrollment[]
-          );
+          // Enrollment fetching removed - no longer required for attendance
+          // Students can be marked for attendance without enrollment
+          setEnrollments([]);
 
           // No need to fetch absence requests anymore
           // Attendance records with status "excused" are sufficient
@@ -1848,19 +1815,8 @@ function ClassActionModal({
       const checkDate = new Date(date);
       checkDate.setHours(0, 0, 0, 0);
 
-      // Find enrollment for this student
-      const enrollment = enrollments.find(
-        (e) => e.studentId.toString() === studentId
-      );
-
-      if (!enrollment) {
-        showError("Không tìm thấy enrollment cho học viên này");
-        setSavingAttendance(null);
-        return;
-      }
-
-      // No need to create absence request when marking as "excused"
-      // Attendance record with status "excused" is sufficient
+      // Enrollment is no longer required for attendance
+      // Students can be marked for attendance without enrollment
 
       // Check if attendance already exists
       const existingAttendance = attendanceRecords.find((att) => {
@@ -1906,9 +1862,9 @@ function ClassActionModal({
         }
       } else {
         // Create new attendance
+        // enrollmentId is optional - no longer required
         const attendanceData: CreateAttendanceData = {
           studentId,
-          enrollmentId: enrollment._id!.toString(),
           classId: classData._id?.toString(),
           sessionDate: formatDateLocal(checkDate), // Format: yyyy-mm-dd in local timezone
           status,

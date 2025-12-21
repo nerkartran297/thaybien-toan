@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (
       !data.studentId ||
-      !data.enrollmentId ||
       !data.sessionDate ||
       !data.status ||
       !data.markedBy
@@ -131,7 +130,7 @@ export async function POST(request: NextRequest) {
 
       const attendance: Attendance = {
         studentId: new ObjectId(typeof data.studentId === 'string' ? data.studentId : data.studentId.toString()),
-        enrollmentId: new ObjectId(typeof data.enrollmentId === 'string' ? data.enrollmentId : data.enrollmentId.toString()),
+        enrollmentId: data.enrollmentId ? new ObjectId(typeof data.enrollmentId === 'string' ? data.enrollmentId : data.enrollmentId.toString()) : undefined,
         classId: data.classId ? new ObjectId(typeof data.classId === 'string' ? data.classId : data.classId.toString()) : undefined,
       sessionDate: sessionDate,
       status: data.status,
@@ -146,14 +145,19 @@ export async function POST(request: NextRequest) {
       .collection('attendance')
       .insertOne(attendance);
 
-    // Update enrollment completed sessions if present
-    if (data.status === 'present' || data.status === 'makeup') {
-      await db.collection('enrollments').updateOne(
-        { _id: new ObjectId(typeof data.enrollmentId === 'string' ? data.enrollmentId : data.enrollmentId.toString()) },
-        {
-          $inc: { completedSessions: 1, remainingSessions: -1 },
-        }
-      );
+    // Update enrollment completed sessions if present and enrollmentId is provided
+    if ((data.status === 'present' || data.status === 'makeup') && data.enrollmentId) {
+      try {
+        await db.collection('enrollments').updateOne(
+          { _id: new ObjectId(typeof data.enrollmentId === 'string' ? data.enrollmentId : data.enrollmentId.toString()) },
+          {
+            $inc: { completedSessions: 1, remainingSessions: -1 },
+          }
+        );
+      } catch {
+        // Enrollment update is optional, don't fail if enrollment doesn't exist
+        console.log('Enrollment update skipped (enrollment may not exist)');
+      }
     }
 
     return NextResponse.json(
