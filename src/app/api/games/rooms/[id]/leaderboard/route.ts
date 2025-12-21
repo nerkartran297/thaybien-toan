@@ -11,7 +11,7 @@ const secret = new TextEncoder().encode(
 // GET /api/games/rooms/[id]/leaderboard - Get leaderboard for a room
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -34,7 +34,7 @@ export async function GET(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {
@@ -58,7 +58,8 @@ export async function GET(
 
     // Get room to check activity type
     const room = await db.collection('rooms').findOne({ _id: roomObjectId });
-    const activityType = room ? ((room as any).activityType || room.gameType || 'snake') : 'snake';
+    const roomWithActivity = room as { activityType?: string; gameType?: string } | null;
+    const activityType = roomWithActivity ? (roomWithActivity.activityType || roomWithActivity.gameType || 'snake') : 'snake';
 
     let leaderboard: Array<{
       rank: number;
@@ -109,7 +110,8 @@ export async function GET(
           }
 
           // Get name from fullName, name, or username
-          const studentName = studentUser.fullName || (studentUser as any).name || studentUser.username || 'N/A';
+          const userWithName = studentUser as { fullName?: string; name?: string; username?: string };
+          const studentName = userWithName.fullName || userWithName.name || userWithName.username || 'N/A';
 
           return {
             rank: index + 1,
@@ -160,7 +162,8 @@ export async function GET(
           }
 
           // Get name from fullName, name, or username
-          const studentName = studentUser.fullName || (studentUser as any).name || studentUser.username || 'N/A';
+          const userWithName = studentUser as { fullName?: string; name?: string; username?: string };
+          const studentName = userWithName.fullName || userWithName.name || userWithName.username || 'N/A';
 
           return {
             rank: index + 1,
@@ -211,7 +214,8 @@ export async function GET(
           }
 
           // Get name from fullName, name, or username
-          const studentName = studentUser.fullName || (studentUser as any).name || studentUser.username || 'N/A';
+          const userWithName = studentUser as { fullName?: string; name?: string; username?: string };
+          const studentName = userWithName.fullName || userWithName.name || userWithName.username || 'N/A';
 
           return {
             rank: index + 1,

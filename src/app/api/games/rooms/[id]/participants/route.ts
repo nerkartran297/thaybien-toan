@@ -11,7 +11,7 @@ const secret = new TextEncoder().encode(
 // GET /api/games/rooms/[id]/participants - Get list of students who joined the room
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -34,7 +34,7 @@ export async function GET(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {
@@ -80,7 +80,10 @@ export async function GET(
 
         return {
           studentId: participant.studentId.toString(),
-          name: studentUser.fullName || (studentUser as any).name || studentUser.username || 'N/A',
+          name: (() => {
+            const userWithName = studentUser as { fullName?: string; name?: string; username?: string };
+            return userWithName.fullName || userWithName.name || userWithName.username || 'N/A';
+          })(),
           joinedAt: participant.joinedAt,
         };
       })

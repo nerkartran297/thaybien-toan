@@ -11,7 +11,7 @@ const secret = new TextEncoder().encode(
 // GET /api/games/rooms/[id] - Get a specific room
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -34,7 +34,7 @@ export async function GET(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {
@@ -66,19 +66,25 @@ export async function GET(
       );
     }
 
+    const roomWithExtras = room as {
+      activityType?: string;
+      gameType?: string;
+      examId?: ObjectId;
+      quizId?: ObjectId;
+    };
     return NextResponse.json({
       id: room._id.toString(),
       code: room.code,
       name: room.name,
-      activityType: (room as any).activityType || room.gameType || 'snake',
-      gameType: (room as any).activityType || room.gameType || 'snake', // Keep for backward compatibility
+      activityType: roomWithExtras.activityType || roomWithExtras.gameType || 'snake',
+      gameType: roomWithExtras.activityType || roomWithExtras.gameType || 'snake', // Keep for backward compatibility
       startTime: room.startTime,
       endTime: room.endTime,
       duration: room.duration,
       isActive: room.isActive,
       createdAt: room.createdAt,
-      examId: (room as any).examId?.toString(),
-      quizId: (room as any).quizId?.toString(),
+      examId: roomWithExtras.examId?.toString(),
+      quizId: roomWithExtras.quizId?.toString(),
     });
   } catch (error) {
     console.error('Error fetching room:', error);
@@ -92,7 +98,7 @@ export async function GET(
 // PUT /api/games/rooms/[id] - Update a room (teacher only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -127,7 +133,7 @@ export async function PUT(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {
@@ -167,7 +173,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     };
 
@@ -211,14 +217,26 @@ export async function PUT(
       id: updatedRoom._id.toString(),
       code: updatedRoom.code,
       name: updatedRoom.name,
-      activityType: (updatedRoom as any).activityType || updatedRoom.gameType || 'snake',
-      gameType: (updatedRoom as any).activityType || updatedRoom.gameType || 'snake', // Keep for backward compatibility
+      activityType: (() => {
+        const room = updatedRoom as { activityType?: string; gameType?: string; examId?: ObjectId; quizId?: ObjectId };
+        return room.activityType || room.gameType || 'snake';
+      })(),
+      gameType: (() => {
+        const room = updatedRoom as { activityType?: string; gameType?: string };
+        return room.activityType || room.gameType || 'snake';
+      })(), // Keep for backward compatibility
       startTime: updatedRoom.startTime,
       endTime: updatedRoom.endTime,
       duration: updatedRoom.duration,
       isActive: updatedRoom.isActive,
-      examId: (updatedRoom as any).examId?.toString(),
-      quizId: (updatedRoom as any).quizId?.toString(),
+      examId: (() => {
+        const room = updatedRoom as { examId?: ObjectId };
+        return room.examId?.toString();
+      })(),
+      quizId: (() => {
+        const room = updatedRoom as { quizId?: ObjectId };
+        return room.quizId?.toString();
+      })(),
     });
   } catch (error) {
     console.error('Error updating room:', error);
@@ -232,7 +250,7 @@ export async function PUT(
 // DELETE /api/games/rooms/[id] - Delete a room (teacher only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -267,7 +285,7 @@ export async function DELETE(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {

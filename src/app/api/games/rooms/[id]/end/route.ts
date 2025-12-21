@@ -11,7 +11,7 @@ const secret = new TextEncoder().encode(
 // POST /api/games/rooms/[id]/end - End a room and calculate competition points (teacher only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -46,7 +46,7 @@ export async function POST(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {
@@ -105,7 +105,8 @@ export async function POST(
     );
 
     // Calculate and add competition points based on ranking
-    const activityType = (room as any).activityType || room.gameType || 'snake';
+    const roomWithActivity = room as { activityType?: string; gameType?: string };
+    const activityType = roomWithActivity.activityType || roomWithActivity.gameType || 'snake';
     
     let pointsAdded = 0;
     const updates: Array<{

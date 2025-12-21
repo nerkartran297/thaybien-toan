@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let query: any = { studentId: new ObjectId(auth.userId) };
+    const query: Record<string, ObjectId> = { studentId: new ObjectId(auth.userId) };
     if (examId) {
       query.examId = new ObjectId(examId);
     }
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     // Initialize answers array with null values
     const initialAnswers: (string | null)[] = new Array(totalQuestions).fill(null);
 
-    const attempt: any = {
+    const attempt: Omit<ExamAttempt, '_id'> & { _id?: ObjectId } = {
       examId: new ObjectId(data.examId),
       studentId: new ObjectId(auth.userId),
       answers: initialAnswers,
@@ -185,12 +185,8 @@ export async function POST(request: NextRequest) {
       startedAt: new Date(data.startedAt),
       createdAt: new Date(),
       updatedAt: new Date(),
+      ...(data.roomId && { roomId: new ObjectId(data.roomId) }),
     };
-
-    // Add roomId if provided (for synchronized exams)
-    if (data.roomId) {
-      attempt.roomId = new ObjectId(data.roomId);
-    }
 
     const result = await db.collection<ExamAttempt>('examAttempts').insertOne(attempt);
 

@@ -100,8 +100,8 @@ export default function ExamResultsPage() {
           // Also check classes to get class name if student.group doesn't exist
           if (!className) {
             for (const cls of classesData) {
-              const enrolledIds = cls.enrolledStudents.map((id: any) =>
-                typeof id === "string" ? id : id.toString()
+              const enrolledIds = cls.enrolledStudents.map((id: unknown) =>
+                typeof id === "string" ? id : String(id)
               );
               if (enrolledIds.includes(studentIdStr || "")) {
                 className = cls.name;

@@ -12,7 +12,7 @@ const secret = new TextEncoder().encode(
 // GET /api/games/rooms/[id]/quiz/answer/check - Check if student has answered current question
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -47,7 +47,7 @@ export async function GET(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {

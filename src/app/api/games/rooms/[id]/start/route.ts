@@ -11,7 +11,7 @@ const secret = new TextEncoder().encode(
 // POST /api/games/rooms/[id]/start - Start a room (teacher only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -46,7 +46,7 @@ export async function POST(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {

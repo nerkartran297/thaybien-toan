@@ -12,7 +12,7 @@ const secret = new TextEncoder().encode(
 // GET /api/games/rooms/[id]/quiz/session - Get or create quiz session
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -35,7 +35,7 @@ export async function GET(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {
@@ -69,7 +69,8 @@ export async function GET(
       );
     }
 
-    const activityType = (room as any).activityType || room.gameType;
+    const roomWithActivity = room as { activityType?: string; gameType?: string; quizId?: ObjectId };
+    const activityType = roomWithActivity.activityType || roomWithActivity.gameType;
     if (activityType !== 'quiz') {
       return NextResponse.json(
         { error: 'This room is not a quiz room' },
@@ -77,7 +78,7 @@ export async function GET(
       );
     }
 
-    const quizId = (room as any).quizId;
+    const quizId = roomWithActivity.quizId;
     if (!quizId) {
       return NextResponse.json(
         { error: 'Room does not have a quiz assigned' },

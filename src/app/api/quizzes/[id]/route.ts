@@ -12,7 +12,7 @@ const secret = new TextEncoder().encode(
 // GET /api/quizzes/[id] - Get a single quiz
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -35,7 +35,7 @@ export async function GET(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const quizId = resolvedParams.id;
 
     if (!quizId) {
@@ -84,7 +84,7 @@ export async function GET(
 // PUT /api/quizzes/[id] - Update a quiz (teacher only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -119,7 +119,7 @@ export async function PUT(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const quizId = resolvedParams.id;
 
     if (!quizId) {
@@ -182,7 +182,7 @@ export async function PUT(
 // DELETE /api/quizzes/[id] - Delete a quiz (teacher only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -217,7 +217,7 @@ export async function DELETE(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const quizId = resolvedParams.id;
 
     if (!quizId) {

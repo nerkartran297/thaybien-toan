@@ -6,7 +6,25 @@ import Link from "next/link";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { QuizSession } from "@/models/QuizSession";
-import { Quiz } from "@/models/Quiz";
+import { Quiz, AnswerOption } from "@/models/Quiz";
+
+interface QuizStats {
+  questionIndex: number;
+  totalAnswers: number;
+  counts: {
+    A: number;
+    B: number;
+    C: number;
+    D: number;
+  };
+  percentages: {
+    A: number;
+    B: number;
+    C: number;
+    D: number;
+  };
+  correctAnswer: AnswerOption | null;
+}
 
 export default function TeacherQuizControlPage() {
   const { user, loading: authLoading } = useAuth();
@@ -16,7 +34,7 @@ export default function TeacherQuizControlPage() {
 
   const [session, setSession] = useState<QuizSession | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<QuizStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,39 +42,6 @@ export default function TeacherQuizControlPage() {
       router.push("/sign-in");
     }
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (user && user.role === "teacher") {
-      fetchSession();
-    }
-  }, [user, roomId]);
-
-  useEffect(() => {
-    if (session?.quizId) {
-      fetchQuiz();
-    }
-  }, [session?.quizId]);
-
-  // Auto-redirect when quiz is completed
-  useEffect(() => {
-    if (session?.isCompleted) {
-      router.push(`/teacher/games/${roomId}/leaderboard`);
-    }
-  }, [session?.isCompleted, roomId, router]);
-
-  // Polling: Fetch session and stats every 2 seconds
-  useEffect(() => {
-    if (!session || session.isCompleted) return;
-
-    const interval = setInterval(() => {
-      fetchSession();
-      if (session.isQuestionActive) {
-        fetchStats();
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [session?.isQuestionActive, session?.isCompleted]);
 
   const fetchSession = async () => {
     try {
@@ -85,6 +70,27 @@ export default function TeacherQuizControlPage() {
     }
   };
 
+  useEffect(() => {
+    if (user && user.role === "teacher") {
+      fetchSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, roomId]);
+
+  useEffect(() => {
+    if (session?.quizId) {
+      fetchQuiz();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.quizId]);
+
+  // Auto-redirect when quiz is completed
+  useEffect(() => {
+    if (session?.isCompleted) {
+      router.push(`/teacher/games/${roomId}/leaderboard`);
+    }
+  }, [session?.isCompleted, roomId, router]);
+
   const fetchStats = async () => {
     try {
       const response = await fetch(`/api/games/rooms/${roomId}/quiz/stats`);
@@ -96,6 +102,21 @@ export default function TeacherQuizControlPage() {
       console.error("Error fetching stats:", error);
     }
   };
+
+  // Polling: Fetch session and stats every 2 seconds
+  useEffect(() => {
+    if (!session || session.isCompleted) return;
+
+    const interval = setInterval(() => {
+      fetchSession();
+      if (session.isQuestionActive) {
+        fetchStats();
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.isQuestionActive, session?.isCompleted]);
 
   const handleStartQuestion = async () => {
     try {
@@ -199,6 +220,7 @@ export default function TeacherQuizControlPage() {
                   </p>
                   {currentQuestion.imageUrl && (
                     <div className="mt-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={currentQuestion.imageUrl}
                         alt="Câu hỏi"

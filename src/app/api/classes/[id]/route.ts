@@ -148,13 +148,14 @@ export async function PUT(
     };
 
     // Remove old fields that are no longer used
-    delete (updateData as any).startTime;
-    delete (updateData as any).endTime;
-    delete (updateData as any).dayOfWeek;
-    delete (updateData as any).repeatsWeekly;
-    delete (updateData as any).seriesId;
-    delete (updateData as any).isPatternBased;
-    delete (updateData as any).maxStudents;
+    const dataToDelete = updateData as Partial<Record<string, unknown>>;
+    delete dataToDelete.startTime;
+    delete dataToDelete.endTime;
+    delete dataToDelete.dayOfWeek;
+    delete dataToDelete.repeatsWeekly;
+    delete dataToDelete.seriesId;
+    delete dataToDelete.isPatternBased;
+    delete dataToDelete.maxStudents;
 
     // Update only this class
     const result = await db

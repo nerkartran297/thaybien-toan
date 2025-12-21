@@ -61,7 +61,7 @@ export default function TakeExamPage() {
   // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      const userAgent = navigator.userAgent || navigator.vendor || (window as Window & { opera?: unknown }).opera;
       const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
         userAgent.toLowerCase()
       );

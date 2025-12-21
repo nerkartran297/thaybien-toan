@@ -11,7 +11,7 @@ const secret = new TextEncoder().encode(
 // POST /api/games/rooms/join/[code] - Join a room by code
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ code: string }> | { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -46,7 +46,7 @@ export async function POST(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomCode = resolvedParams.code;
 
     if (!roomCode) {

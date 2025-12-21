@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const gradeFilter = searchParams.get('grade') || null;
 
     // Get all unique grades and groups from student_profiles
-    let profileQuery: any = {};
+    const profileQuery: Record<string, unknown> = {};
     if (gradeFilter) {
       profileQuery.grade = gradeFilter;
     }

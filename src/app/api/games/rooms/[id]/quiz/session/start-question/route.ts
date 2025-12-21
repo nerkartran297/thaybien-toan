@@ -12,7 +12,7 @@ const secret = new TextEncoder().encode(
 // POST /api/games/rooms/[id]/quiz/session/start-question - Start current question (teacher only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies();
@@ -47,7 +47,7 @@ export async function POST(
       );
     }
 
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const roomId = resolvedParams.id;
 
     if (!roomId) {
@@ -98,7 +98,8 @@ export async function POST(
       );
     }
 
-    if (session.currentQuestionIndex >= (quiz as any).questions.length) {
+    const quizWithQuestions = quiz as { questions: unknown[] };
+    if (session.currentQuestionIndex >= quizWithQuestions.questions.length) {
       return NextResponse.json(
         { error: 'All questions have been completed' },
         { status: 400 }

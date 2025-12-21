@@ -164,7 +164,7 @@ export async function PUT(
       _id: updated?._id?.toString(),
       examId: updated?.examId?.toString(),
       studentId: updated?.studentId?.toString(),
-      roomId: (updated as any)?.roomId?.toString(),
+      roomId: updated?.roomId?.toString(),
     });
   } catch (error) {
     console.error('Error updating exam attempt:', error);

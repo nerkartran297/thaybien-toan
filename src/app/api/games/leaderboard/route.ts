@@ -12,7 +12,7 @@ const secret = new TextEncoder().encode(
 function getDateRange(period: string): { start: Date | null; end: Date | null } {
   const now = new Date();
   let start: Date | null = null;
-  let end: Date | null = now;
+  const end: Date | null = now;
 
   switch (period) {
     case 'week': {
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Build query based on scope
-    let profileQuery: any = {};
+    const profileQuery: Record<string, unknown> = {};
 
     if (user.role === 'student') {
       // Students can only see their own class and grade
@@ -205,12 +205,13 @@ export async function GET(request: NextRequest) {
 
         if (!studentUser) return null;
 
-        const score = period !== 'all' ? (profile as any).periodScore : (profile.competitionScore || 0);
-
+        const profileWithPeriod = profile as { periodScore?: number; competitionScore?: number };
+        const score = period !== 'all' ? (profileWithPeriod.periodScore || 0) : (profile.competitionScore || 0);
+        const userWithName = studentUser as { fullName?: string; name?: string; username?: string };
         return {
           rank: index + 1,
           studentId: profile._id.toString(),
-          name: studentUser.fullName || (studentUser as any).name || studentUser.username || 'N/A',
+          name: userWithName.fullName || userWithName.name || userWithName.username || 'N/A',
           score,
           grade: profile.grade || null,
           group: profile.group || null,

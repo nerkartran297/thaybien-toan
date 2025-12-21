@@ -56,7 +56,21 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .toArray();
 
-    const formattedRooms = rooms.map((room: any) => ({
+    type RoomWithExtras = {
+      _id: ObjectId;
+      code: string;
+      name: string;
+      activityType?: string;
+      gameType?: string;
+      startTime?: Date;
+      endTime?: Date;
+      duration?: number;
+      isActive: boolean;
+      createdAt?: Date;
+      examId?: ObjectId;
+      quizId?: ObjectId;
+    };
+    const formattedRooms = rooms.map((room: RoomWithExtras) => ({
       id: room._id.toString(),
       code: room.code,
       name: room.name,
@@ -67,8 +81,8 @@ export async function GET() {
       duration: room.duration,
       isActive: room.isActive,
       createdAt: room.createdAt,
-      examId: (room as any).examId?.toString(),
-      quizId: (room as any).quizId?.toString(),
+      examId: room.examId?.toString(),
+      quizId: room.quizId?.toString(),
     }));
 
     return NextResponse.json(formattedRooms);
@@ -174,7 +188,21 @@ export async function POST(request: NextRequest) {
       existingRoom = await db.collection('rooms').findOne({ code: roomCode });
     }
 
-    const room: any = {
+    const room: {
+      code: string;
+      name: string;
+      teacherId: ObjectId;
+      activityType?: string;
+      gameType?: string;
+      startTime?: Date | null;
+      endTime?: Date | null;
+      duration?: number;
+      isActive: boolean;
+      examId?: ObjectId | null;
+      quizId?: ObjectId | null;
+      createdAt: Date;
+      updatedAt: Date;
+    } = {
       code: roomCode,
       name,
       activityType: finalActivityType,
