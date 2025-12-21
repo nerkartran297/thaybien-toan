@@ -25,7 +25,16 @@ export async function GET(
     const { password: _password, ...studentWithoutPassword } = student;
     console.log(`Password hash: ${_password?.substring(0, 10)}...`);
 
-    return NextResponse.json(studentWithoutPassword);
+    // Get student profile for grade and group
+    const profile = await db
+      .collection('student_profiles')
+      .findOne({ userId: student._id });
+
+    return NextResponse.json({
+      ...studentWithoutPassword,
+      grade: profile?.grade || null,
+      group: profile?.group || null,
+    });
   } catch (error) {
     console.error('Error fetching student:', error);
     return NextResponse.json(
@@ -101,6 +110,62 @@ export async function PUT(
     console.error('Error updating student:', error);
     return NextResponse.json(
       { error: 'Failed to update student' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/students/[id] - Update student profile (grade, group, etc.)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const data: { grade?: number; group?: string } = await request.json();
+    const db = await getDatabase();
+
+    // Check if student exists
+    const existingStudent = await db.collection('users').findOne({
+      _id: new ObjectId(id),
+      role: 'student',
+    }) as User | null;
+
+    if (!existingStudent) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+
+    // Update or create student profile
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (data.grade !== undefined) {
+      updateData.grade = data.grade;
+    }
+    if (data.group !== undefined) {
+      updateData.group = data.group;
+    }
+
+    await db.collection('student_profiles').updateOne(
+      { userId: new ObjectId(id) },
+      { $set: updateData },
+      { upsert: true }
+    );
+
+    // Fetch updated profile
+    const profile = await db
+      .collection('student_profiles')
+      .findOne({ userId: new ObjectId(id) });
+
+    return NextResponse.json({
+      grade: profile?.grade || null,
+      group: profile?.group || null,
+    });
+  } catch (error) {
+    console.error('Error updating student profile:', error);
+    return NextResponse.json(
+      { error: 'Failed to update student profile' },
       { status: 500 }
     );
   }

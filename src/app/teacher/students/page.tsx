@@ -7,15 +7,13 @@ import { useRouter } from "next/navigation";
 import StudentForm from "@/app/components/StudentForm";
 import StudentDetailModal from "@/app/components/StudentDetailModal";
 import { User, CreateUserData, UpdateUserData } from "@/models/User";
-import { Course } from "@/models/Course";
 import { Class } from "@/models/Class";
-import {
-  CreateEnrollmentData,
-  UpdateEnrollmentData,
-  StudentEnrollment,
-} from "@/models/StudentEnrollment";
 
-type StudentWithEnrollmentCount = User & { enrollmentCount?: number };
+type StudentWithProfile = User & {
+  enrollmentCount?: number;
+  grade?: number | null;
+  group?: string | null;
+};
 
 const colors = {
   light: "#F0EAD2",
@@ -28,8 +26,7 @@ const colors = {
 export default function StudentsManagementPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [students, setStudents] = useState<StudentWithEnrollmentCount[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [students, setStudents] = useState<StudentWithProfile[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -56,13 +53,6 @@ export default function StudentsManagementPage() {
       if (studentsRes.ok) {
         const studentsData = await studentsRes.json();
         setStudents(studentsData);
-      }
-
-      // Fetch courses
-      const coursesRes = await fetch("/api/courses");
-      if (coursesRes.ok) {
-        const coursesData = await coursesRes.json();
-        setCourses(coursesData);
       }
 
       // Fetch classes
@@ -92,7 +82,6 @@ export default function StudentsManagementPage() {
 
   const handleSaveStudent = async (
     studentData: CreateUserData | UpdateUserData,
-    enrollmentData?: Omit<CreateEnrollmentData, "studentId"> | null,
     classId?: string
   ) => {
     try {
@@ -129,31 +118,7 @@ export default function StudentsManagementPage() {
         const newStudent = await response.json();
         studentId = newStudent._id;
 
-        // Enrollment is created automatically when courseId and frequency are selected
-        // Enrollment only tracks which course the student is enrolled in
-        if (
-          enrollmentData &&
-          enrollmentData.courseId &&
-          enrollmentData.frequency &&
-          enrollmentData.startDate
-        ) {
-          const enrollmentResponse = await fetch("/api/enrollments", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...enrollmentData,
-              studentId,
-            }),
-          });
-
-          if (!enrollmentResponse.ok) {
-            const error = await enrollmentResponse.json();
-            console.error("Failed to create enrollment:", error);
-            // Don't throw error, just log it
-          }
-        }
-
-        // Adding student to class is separate from enrollment
+        // Adding student to class
         // Class selection can be done later from calendar
         if (classId) {
           const addToClassResponse = await fetch(
@@ -206,41 +171,6 @@ export default function StudentsManagementPage() {
     }
 
     await fetchStudents();
-  };
-
-  const handleUpdateEnrollment = async (
-    enrollmentId: string,
-    data: UpdateEnrollmentData
-  ) => {
-    const response = await fetch(`/api/enrollments/${enrollmentId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to update enrollment");
-    }
-  };
-
-  const handleCreateEnrollment = async (
-    studentId: string,
-    data: Partial<StudentEnrollment>
-  ) => {
-    const response = await fetch("/api/enrollments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...data,
-        studentId,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to create enrollment");
-    }
   };
 
   const handleAddToClass = async (classId: string, studentId: string) => {
@@ -359,7 +289,7 @@ export default function StudentsManagementPage() {
                   className="px-6 py-4 text-left text-sm font-semibold"
                   style={{ color: colors.darkBrown }}
                 >
-                  Khóa học
+                  Khối
                 </th>
                 <th
                   className="px-6 py-4 text-center text-sm font-semibold"
@@ -397,7 +327,7 @@ export default function StudentsManagementPage() {
                       className="px-6 py-4 text-sm"
                       style={{ color: colors.brown }}
                     >
-                      {student.email || 'N/A'}
+                      {student.email || "N/A"}
                     </td>
                     <td
                       className="px-6 py-4 text-sm"
@@ -409,7 +339,7 @@ export default function StudentsManagementPage() {
                       className="px-6 py-4 text-sm"
                       style={{ color: colors.brown }}
                     >
-                      {student.enrollmentCount || 0} khóa học
+                      {student.grade || "-"}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
@@ -448,7 +378,6 @@ export default function StudentsManagementPage() {
       {showCreateModal && (
         <StudentForm
           student={editingStudent || undefined}
-          courses={courses}
           classes={classes}
           onClose={() => {
             setShowCreateModal(false);
@@ -464,8 +393,6 @@ export default function StudentsManagementPage() {
           student={selectedStudent}
           onClose={() => setSelectedStudent(null)}
           onUpdateStudent={handleUpdateStudent}
-          onUpdateEnrollment={handleUpdateEnrollment}
-          onCreateEnrollment={handleCreateEnrollment}
           onAddToClass={handleAddToClass}
           onRemoveFromClass={handleRemoveFromClass}
         />
