@@ -39,26 +39,27 @@ export default function Navigation() {
       </div>
       <div className="flex items-center space-x-4">
         <div className="hidden lg:flex space-x-4 xl:space-x-6 justify-center items-center">
-          {/* Only show these menus when not logged in as teacher */}
-          {!user || user.role !== "teacher" ? (
+          {/* Only show menu items when user is logged in */}
+          {user ? (
             <>
-              {examInProgress ? (
-                <span
-                  className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
-                  title="Đang làm bài thi, không thể chuyển trang"
-                >
-                  Lịch học
-                </span>
-              ) : (
-                <Link
-                  href="/student/calendar"
-                  className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-                >
-                  Lịch học
-                </Link>
-              )}
-              {user && user.role === "student" && (
+              {/* Student menu when logged in */}
+              {user.role === "student" && (
                 <>
+                  {examInProgress ? (
+                    <span
+                      className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                      title="Đang làm bài thi, không thể chuyển trang"
+                    >
+                      Lịch học
+                    </span>
+                  ) : (
+                    <Link
+                      href="/student/calendar"
+                      className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                    >
+                      Lịch học
+                    </Link>
+                  )}
                   {examInProgress ? (
                     <span
                       className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
@@ -119,85 +120,85 @@ export default function Navigation() {
                       Bảng Xếp Hạng
                     </Link>
                   )}
+                  {examInProgress ? (
+                    <span
+                      className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
+                      title="Đang làm bài thi, không thể chuyển trang"
+                    >
+                      Nội quy
+                    </span>
+                  ) : (
+                    <Link
+                      href="/rules"
+                      className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                    >
+                      Nội quy
+                    </Link>
+                  )}
                 </>
               )}
-              {examInProgress ? (
-                <span
-                  className="text-lg font-sans font-semibold text-gray-400 cursor-not-allowed"
-                  title="Đang làm bài thi, không thể chuyển trang"
-                >
-                  Nội quy
-                </span>
-              ) : (
-                <Link
-                  href="/rules"
-                  className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-                >
-                  Nội quy
-                </Link>
+
+              {/* Teacher menu when logged in */}
+              {user.role === "teacher" && (
+                <>
+                  <Link
+                    href="/teacher/calendar"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Lịch dạy
+                  </Link>
+                  <Link
+                    href="/teacher/overview"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Tiến độ học viên
+                  </Link>
+                  <Link
+                    href="/teacher/students"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Học viên
+                  </Link>
+                  <Link
+                    href="/teacher/classes"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Lớp học
+                  </Link>
+                  <Link
+                    href="/teacher/documents"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Tài liệu
+                  </Link>
+                  <Link
+                    href="/teacher/exams"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Đề thi
+                  </Link>
+                  <Link
+                    href="/teacher/quizzes"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Quiz
+                  </Link>
+                  <Link
+                    href="/teacher/games"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Hoạt động
+                  </Link>
+                  <Link
+                    href="/teacher/leaderboard"
+                    className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
+                  >
+                    Bảng Xếp Hạng
+                  </Link>
+                </>
               )}
             </>
           ) : null}
-
-          {/* Teacher menu when logged in */}
-          {user && user.role === "teacher" && (
-            <>
-              <Link
-                href="/teacher/calendar"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Lịch dạy
-              </Link>
-              <Link
-                href="/teacher/overview"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Tiến độ học viên
-              </Link>
-              <Link
-                href="/teacher/students"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Học viên
-              </Link>
-              <Link
-                href="/teacher/classes"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Lớp học
-              </Link>
-              <Link
-                href="/teacher/documents"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Tài liệu
-              </Link>
-              <Link
-                href="/teacher/exams"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Đề thi
-              </Link>
-              <Link
-                href="/teacher/quizzes"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Quiz
-              </Link>
-              <Link
-                href="/teacher/games"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Hoạt động
-              </Link>
-              <Link
-                href="/teacher/leaderboard"
-                className="hover:text-[#D4A047] text-lg transition-colors font-sans font-semibold text-[#2c3e50]"
-              >
-                Bảng Xếp Hạng
-              </Link>
-            </>
-          )}
 
           {/* User info / Login */}
           {!loading && (
@@ -268,11 +269,11 @@ export default function Navigation() {
       </div>
 
       {/* Mobile Menu */}
-      {isMobileMenuOpen && (
+      {isMobileMenuOpen && user && (
         <div className="lg:hidden absolute top-full left-0 right-0 bg-[#EFEBDF] border-t border-[#FACE84] shadow-lg z-50">
           <div className="px-6 py-4 space-y-4">
-            {/* Only show these menus when logged in and not teacher */}
-            {user && user.role !== "teacher" ? (
+            {/* Student menu when logged in */}
+            {user.role === "student" && (
               <>
                 {examInProgress ? (
                   <span
@@ -375,7 +376,7 @@ export default function Navigation() {
                   </Link>
                 )}
               </>
-            ) : null}
+            )}
 
             {/* Teacher menu when logged in */}
             {user && user.role === "teacher" && (
