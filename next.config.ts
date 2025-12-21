@@ -16,6 +16,18 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Exclude large packages from serverless function bundle
+  // These packages will be loaded from node_modules at runtime instead of being bundled
+  serverExternalPackages: [
+    'mongodb',
+    'mongoose',
+    'mongoose-sequence',
+    'bcryptjs',
+    'jose',
+    'nodemailer',
+    'pino',
+    'pino-pretty',
+  ],
 };
 
 export default nextConfig;
