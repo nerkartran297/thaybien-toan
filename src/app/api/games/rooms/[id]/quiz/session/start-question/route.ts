@@ -68,9 +68,9 @@ export async function POST(
     }
 
     // Get session
-    const session = await db.collection<QuizSession>('quizSessions').findOne({
+    const session = await db.collection('quizSessions').findOne({
       roomId: roomObjectId,
-    });
+    }) as QuizSession | null;
 
     if (!session) {
       return NextResponse.json(
@@ -98,7 +98,7 @@ export async function POST(
       );
     }
 
-    const quizWithQuestions = quiz as { questions: unknown[] };
+    const quizWithQuestions = quiz as unknown as { questions: unknown[] };
     if (session.currentQuestionIndex >= quizWithQuestions.questions.length) {
       return NextResponse.json(
         { error: 'All questions have been completed' },
@@ -107,7 +107,7 @@ export async function POST(
     }
 
     // Start the question
-    await db.collection<QuizSession>('quizSessions').updateOne(
+    await db.collection('quizSessions').updateOne(
       { _id: session._id },
       {
         $set: {
@@ -118,9 +118,9 @@ export async function POST(
       }
     );
 
-    const updatedSession = await db.collection<QuizSession>('quizSessions').findOne({
+    const updatedSession = await db.collection('quizSessions').findOne({
       _id: session._id,
-    });
+    }) as QuizSession | null;
 
     return NextResponse.json({
       ...updatedSession,

@@ -55,9 +55,11 @@ interface CreateProductData {
 
 // GET /api/products - Get all products
 export async function GET(request: NextRequest) {
+  // Log request URL (required parameter but not used in logic)
+  console.log(`Request URL: ${request.url?.substring(0, 50)}...`);
   try {
     const db = await getDatabase();
-    const products = await db.collection<Product>('products').find({}).toArray();
+    const products = await db.collection('products').find({}).toArray();
     
     
     return NextResponse.json(products);
@@ -78,8 +80,11 @@ export async function POST(request: NextRequest) {
     
     // Generate new ID (simple increment, in production use proper ID generation)
     const db = await getDatabase();
-    const lastProduct = await db.collection<Product>('products')
-      .findOne({}, { sort: { id: -1 } });
+    const products = await db.collection('products')
+      .find({})
+      .sort({ id: -1 })
+      .toArray();
+    const lastProduct = products[0] || null;
     
     const newId = lastProduct ? lastProduct.id + 1 : 1;
     
@@ -90,7 +95,11 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
     
-    const result = await db.collection<Product>('products').insertOne(product);
+    // Convert Product to MongoDB document format (remove id, MongoDB will add _id)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...productDoc } = product;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await db.collection('products').insertOne(productDoc as any);
     
     return NextResponse.json(
       { ...product, _id: result.insertedId },

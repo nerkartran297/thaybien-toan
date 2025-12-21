@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { Class, UpdateClassData } from '@/models/Class';
+import { Class } from '@/models/Class';
+// import { UpdateClassData } from '@/models/Class';
 import { ObjectId } from 'mongodb';
 
 // GET /api/classes/[id] - Get class by ID
@@ -12,8 +13,8 @@ export async function GET(
     const { id } = await params;
     const db = await getDatabase();
     const classData = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     if (!classData) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -38,12 +39,13 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     const { updateSeries, ...data } = body;
+    console.log(`Update series flag: ${updateSeries ? 'true' : 'false'}`);
     const db = await getDatabase();
 
     // Check if class exists
     const existingClass = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     if (!existingClass) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -142,24 +144,20 @@ export async function PUT(
       }
     }
 
+    // Create update data, only including valid fields from UpdateClassData
     const updateData: Partial<Class> & { updatedAt: Date } = {
-      ...data,
       updatedAt: new Date(),
     };
-
-    // Remove old fields that are no longer used
-    const dataToDelete = updateData as Partial<Record<string, unknown>>;
-    delete dataToDelete.startTime;
-    delete dataToDelete.endTime;
-    delete dataToDelete.dayOfWeek;
-    delete dataToDelete.repeatsWeekly;
-    delete dataToDelete.seriesId;
-    delete dataToDelete.isPatternBased;
-    delete dataToDelete.maxStudents;
+    
+    // Only copy valid fields that exist in UpdateClassData
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.grade !== undefined) updateData.grade = data.grade;
+    if (data.sessions !== undefined) updateData.sessions = data.sessions;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
     // Update only this class
     const result = await db
-      .collection<Class>('classes')
+      .collection('classes')
       .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
     if (result.matchedCount === 0) {
@@ -168,8 +166,8 @@ export async function PUT(
 
     // Fetch updated class
     const updatedClass = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     return NextResponse.json(updatedClass);
   } catch (error) {
@@ -190,7 +188,7 @@ export async function DELETE(
     const { id } = await params;
     const db = await getDatabase();
 
-    const result = await db.collection<Class>('classes').deleteOne({
+    const result = await db.collection('classes').deleteOne({
       _id: new ObjectId(id),
     });
 

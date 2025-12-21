@@ -213,6 +213,10 @@ export async function PUT(
       _id: roomObjectId,
     });
 
+    if (!updatedRoom) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+    }
+
     return NextResponse.json({
       id: updatedRoom._id.toString(),
       code: updatedRoom.code,

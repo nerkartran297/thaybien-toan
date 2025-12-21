@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { QuizSession, QuizAnswer } from '@/models/QuizSession';
+import { QuizSession } from '@/models/QuizSession';
+// import { QuizAnswer } from '@/models/QuizSession';
 import { ObjectId } from 'mongodb';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
@@ -58,9 +59,9 @@ export async function GET(
     const db = await getDatabase();
 
     // Get session
-    const session = await db.collection<QuizSession>('quizSessions').findOne({
+    const session = await db.collection('quizSessions').findOne({
       roomId: roomObjectId,
-    });
+    }) as QuizSession | null;
 
     if (!session) {
       return NextResponse.json(
@@ -71,7 +72,7 @@ export async function GET(
 
     // Get all answers for current question
     const answers = await db
-      .collection<QuizAnswer>('quizAnswers')
+      .collection('quizAnswers')
       .find({
         sessionId: session._id,
         questionIndex: session.currentQuestionIndex,
@@ -88,7 +89,10 @@ export async function GET(
     };
 
     answers.forEach((answer) => {
-      stats[answer.answer]++;
+      const answerKey = answer.answer as 'A' | 'B' | 'C' | 'D';
+      if (answerKey && stats[answerKey] !== undefined) {
+        stats[answerKey]++;
+      }
     });
 
     // Get quiz to get correct answer
@@ -98,7 +102,7 @@ export async function GET(
 
     const correctAnswer = quiz
       ? (() => {
-          const quizWithQuestions = quiz as { questions: Array<{ correctAnswer?: string }> };
+          const quizWithQuestions = quiz as unknown as { questions: Array<{ correctAnswer?: string }> };
           return quizWithQuestions.questions[session.currentQuestionIndex]?.correctAnswer;
         })()
       : null;

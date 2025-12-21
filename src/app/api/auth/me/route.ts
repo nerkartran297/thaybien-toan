@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { getDatabase } from '@/lib/mongodb';
-import { User } from '@/models/User';
+// import { User } from '@/models/User';
 import { ObjectId } from 'mongodb';
 
 const secret = new TextEncoder().encode(
@@ -11,6 +11,8 @@ const secret = new TextEncoder().encode(
 
 // GET /api/auth/me - Get current user from JWT token
 export async function GET(request: NextRequest) {
+  // Log request URL (required parameter but not used in logic)
+  console.log(`Request URL: ${request.url?.substring(0, 50)}...`);
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
     // Get user from database
     const db = await getDatabase();
     const user = await db
-      .collection<User>('users')
+      .collection('users')
       .findOne({ _id: new ObjectId(userId) });
 
     if (!user) {
@@ -47,7 +49,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Return user data (without password)
-    const { password: _, ...userWithoutPassword } = user;
+    const { password: _password, ...userWithoutPassword } = user;
+    console.log(`Password hash: ${_password?.substring(0, 10)}...`);
 
     return NextResponse.json({
       user: userWithoutPassword,

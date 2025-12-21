@@ -8,7 +8,9 @@ interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
-  ({ className, children, orientation = "vertical", ...props }, ref) => (
+  ({ className, children, orientation: _orientation = "vertical", ...props }, ref) => {
+    console.log(`Scroll orientation: ${_orientation}`);
+    return (
     <div
       ref={ref}
       className={cn("relative overflow-auto", className)}
@@ -16,7 +18,8 @@ const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
     >
       {children}
     </div>
-  )
+    );
+  }
 );
 ScrollArea.displayName = "ScrollArea";
 
@@ -25,18 +28,21 @@ interface ScrollBarProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const ScrollBar = React.forwardRef<HTMLDivElement, ScrollBarProps>(
-  ({ className, orientation = "vertical", ...props }, ref) => (
+  ({ className, orientation: _orientation = "vertical", ...props }, ref) => {
+    console.log(`ScrollBar orientation: ${_orientation}`);
+    return (
     <div
       ref={ref}
       className={cn(
         "flex touch-none select-none transition-colors",
-        orientation === "vertical" && "h-full w-2.5 border-l border-l-transparent p-[2px]",
-        orientation === "horizontal" && "h-2.5 flex-col border-t border-t-transparent p-[2px]",
+        _orientation === "vertical" && "h-full w-2.5 border-l border-l-transparent p-[2px]",
+        _orientation === "horizontal" && "h-2.5 flex-col border-t border-t-transparent p-[2px]",
         className
       )}
       {...props}
     />
-  )
+    );
+  }
 );
 ScrollBar.displayName = "ScrollBar";
 

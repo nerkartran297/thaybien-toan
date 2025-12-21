@@ -21,8 +21,8 @@ interface MakeupRequestModalProps {
 }
 
 export default function MakeupRequestModal({
-  originalClass,
-  originalDate,
+  // originalClass,
+  // originalDate,
   availableClasses,
   currentWeekStart,
   onClose,
@@ -33,30 +33,27 @@ export default function MakeupRequestModal({
 
   // Calculate date for a repeating class in the current week
   const getDateForClassInWeek = (cls: Class, weekStart: Date): Date => {
-    if (cls.repeatsWeekly && cls.dayOfWeek !== undefined) {
+    // Use the first session if available
+    if (cls.sessions && cls.sessions.length > 0) {
+      const session = cls.sessions[0];
       // Calculate the date in the current week
       const weekStartCopy = new Date(weekStart);
       weekStartCopy.setHours(0, 0, 0, 0);
-      const dayOfWeek = cls.dayOfWeek;
+      const dayOfWeek = session.dayOfWeek;
 
       // Get the date of the class in this week
       const classDate = new Date(weekStartCopy);
       const daysToAdd = dayOfWeek - weekStartCopy.getDay();
       classDate.setDate(weekStartCopy.getDate() + daysToAdd);
 
-      // Set the time from the class startTime
-      const classStartTime = new Date(cls.startTime);
-      classDate.setHours(
-        classStartTime.getHours(),
-        classStartTime.getMinutes(),
-        0,
-        0
-      );
+      // Set the time from the session startTime
+      const [startHour, startMin] = session.startTime.split(':').map(Number);
+      classDate.setHours(startHour, startMin, 0, 0);
 
       return classDate;
     } else {
-      // For single classes, use the class start time
-      return new Date(cls.startTime);
+      // Fallback: use current date/time
+      return new Date();
     }
   };
 
@@ -124,10 +121,9 @@ export default function MakeupRequestModal({
                     minute: "2-digit",
                   })}{" "}
                   -{" "}
-                  {new Date(makeupClass.endTime).toLocaleTimeString("vi-VN", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {makeupClass.sessions && makeupClass.sessions.length > 0
+                    ? makeupClass.sessions[0].endTime
+                    : ""}
                   )
                 </span>
               </div>

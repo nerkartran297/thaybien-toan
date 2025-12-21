@@ -35,9 +35,9 @@ export async function GET(request: NextRequest) {
     }
 
     const absences = await db
-      .collection<AbsenceRequest>('absenceRequests')
+      .collection('absenceRequests')
       .find(query)
-      .toArray();
+      .toArray() as AbsenceRequest[];
 
     return NextResponse.json(absences);
   } catch (error) {
@@ -82,9 +82,9 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
 
     const absenceRequest: AbsenceRequest = {
-      studentId: new ObjectId(data.studentId),
-      enrollmentId: new ObjectId(data.enrollmentId),
-      classId: data.classId ? new ObjectId(data.classId) : undefined,
+      studentId: new ObjectId(typeof data.studentId === 'string' ? data.studentId : data.studentId.toString()),
+      enrollmentId: new ObjectId(typeof data.enrollmentId === 'string' ? data.enrollmentId : data.enrollmentId.toString()),
+      classId: data.classId ? new ObjectId(typeof data.classId === 'string' ? data.classId : data.classId.toString()) : undefined,
       sessionDate,
       reason: data.reason,
       requestedAt: now,
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await db
-      .collection<AbsenceRequest>('absenceRequests')
+      .collection('absenceRequests')
       .insertOne(absenceRequest);
 
     // Automatically create attendance record with status "excused"
@@ -117,9 +117,9 @@ export async function POST(request: NextRequest) {
     sessionDateEnd.setHours(23, 59, 59, 999);
 
     const existingAttendance = await db
-      .collection<Attendance>('attendance')
+      .collection('attendance')
       .findOne({
-        studentId: new ObjectId(data.studentId),
+        studentId: new ObjectId(typeof data.studentId === 'string' ? data.studentId : data.studentId.toString()),
         sessionDate: {
           $gte: sessionDateStart,
           $lte: sessionDateEnd,
@@ -129,18 +129,18 @@ export async function POST(request: NextRequest) {
     // Only create attendance record if it doesn't exist
     if (!existingAttendance) {
       const attendance: Attendance = {
-        studentId: new ObjectId(data.studentId),
-        enrollmentId: new ObjectId(data.enrollmentId),
-        classId: data.classId ? new ObjectId(data.classId) : undefined,
+        studentId: new ObjectId(typeof data.studentId === 'string' ? data.studentId : data.studentId.toString()),
+        enrollmentId: new ObjectId(typeof data.enrollmentId === 'string' ? data.enrollmentId : data.enrollmentId.toString()),
+        classId: data.classId ? new ObjectId(typeof data.classId === 'string' ? data.classId : data.classId.toString()) : undefined,
         sessionDate: sessionDateObj,
         status: 'excused',
-        markedBy: new ObjectId(data.studentId), // Student requested absence, so marked by themselves
+        markedBy: new ObjectId(typeof data.studentId === 'string' ? data.studentId : data.studentId.toString()), // Student requested absence, so marked by themselves
         markedAt: now,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      await db.collection<Attendance>('attendance').insertOne(attendance);
+      await db.collection('attendance').insertOne(attendance);
     }
 
     return NextResponse.json(

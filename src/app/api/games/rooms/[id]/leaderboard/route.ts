@@ -86,7 +86,7 @@ export async function GET(
       // Limit to top 50
       const topAttempts = examAttempts.slice(0, 50);
 
-      leaderboard = await Promise.all(
+      const leaderboardResults = await Promise.all(
         topAttempts.map(async (attempt, index) => {
           if (!attempt.studentId) return null;
 
@@ -125,6 +125,7 @@ export async function GET(
           };
         })
       );
+      leaderboard = leaderboardResults.filter((item): item is NonNullable<typeof item> => item !== null);
     } else if (activityType === 'quiz') {
       // For quiz activities: get quiz student scores sorted by totalScore
       const quizScores = await db
@@ -136,7 +137,7 @@ export async function GET(
       // Limit to top 50
       const topScores = quizScores.slice(0, 50);
 
-      leaderboard = await Promise.all(
+      const quizLeaderboardResults = await Promise.all(
         topScores.map(async (score, index) => {
           const studentProfile = await db
             .collection('student_profiles')
@@ -177,6 +178,7 @@ export async function GET(
           };
         })
       );
+      leaderboard = quizLeaderboardResults.filter((item): item is NonNullable<typeof item> => item !== null);
     } else {
       // For game activities (snake, quiz): get game sessions sorted by highestScore
       const gameSessions = await db
@@ -188,7 +190,7 @@ export async function GET(
       // Limit to top 50
       const topSessions = gameSessions.slice(0, 50);
 
-      leaderboard = await Promise.all(
+      const gameLeaderboardResults = await Promise.all(
         topSessions.map(async (session, index) => {
           const studentProfile = await db
             .collection('student_profiles')
@@ -229,6 +231,7 @@ export async function GET(
           };
         })
       );
+      leaderboard = gameLeaderboardResults.filter((item): item is NonNullable<typeof item> => item !== null);
     }
 
     return NextResponse.json({

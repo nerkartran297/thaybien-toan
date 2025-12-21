@@ -43,7 +43,11 @@ const PopoverTrigger = React.forwardRef<
   };
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, { ...props, onClick: handleClick, ref });
+    const child = children as React.ReactElement<Record<string, unknown>>;
+    const mergedProps = { ...props, onClick: handleClick, ref };
+    // Type assertion needed for React.cloneElement with dynamic props
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return React.cloneElement(child, mergedProps as any);
   }
 
   return (
@@ -60,7 +64,8 @@ interface PopoverContentProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentProps>(
-  ({ className, align = "center", sideOffset = 4, children, ...props }, ref) => {
+  ({ className, align: _align = "center", sideOffset = 4, children, ...props }, ref) => {
+    console.log(`Popover align: ${_align}`);
     const context = React.useContext(PopoverContext);
     if (!context) throw new Error("PopoverContent must be used within Popover");
 

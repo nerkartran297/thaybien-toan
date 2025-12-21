@@ -109,21 +109,21 @@ export default function WeekCalendar({
   };
 
   // Helper function to check if student was enrolled before or on the class date
-  const isStudentEnrolledForDate = (
-    studentId: string,
-    classDate: Date
-  ): boolean => {
-    const enrollment = studentEnrollments.get(studentId);
-    if (!enrollment) return true; // If no enrollment found, assume enrolled (fallback)
+  // const isStudentEnrolledForDate = (
+  //   studentId: string,
+  //   classDate: Date
+  // ): boolean => {
+  //   const enrollment = studentEnrollments.get(studentId);
+  //   if (!enrollment) return true; // If no enrollment found, assume enrolled (fallback)
 
-    // Check if class date is on or after enrollment startDate
-    const enrollmentStartDate = new Date(enrollment.startDate);
-    enrollmentStartDate.setHours(0, 0, 0, 0);
-    const checkDate = new Date(classDate);
-    checkDate.setHours(0, 0, 0, 0);
+  //   // Check if class date is on or after enrollment startDate
+  //   const enrollmentStartDate = new Date(enrollment.startDate);
+  //   enrollmentStartDate.setHours(0, 0, 0, 0);
+  //   const checkDate = new Date(classDate);
+  //   checkDate.setHours(0, 0, 0, 0);
 
-    return checkDate >= enrollmentStartDate;
-  };
+  //   return checkDate >= enrollmentStartDate;
+  // };
 
   // Fetch enrollments for all students in all classes
   useEffect(() => {
@@ -574,20 +574,20 @@ export default function WeekCalendar({
                       const classDateForFull = new Date(date);
                       classDateForFull.setHours(0, 0, 0, 0);
 
-                      const validEnrolledStudentsForFull =
-                        cls.enrolledStudents.filter((studentId) => {
-                          if (role === "teacher") {
-                            return true; // Teacher sees all enrolled students
-                          }
-                          if (enrollment) {
-                            const enrollmentStartDate = new Date(
-                              enrollment.startDate
-                            );
-                            enrollmentStartDate.setHours(0, 0, 0, 0);
-                            return classDateForFull >= enrollmentStartDate;
-                          }
-                          return true;
-                        });
+                      // const validEnrolledStudentsForFull =
+                      //   cls.enrolledStudents.filter((studentId) => {
+                      //     if (role === "teacher") {
+                      //       return true; // Teacher sees all enrolled students
+                      //     }
+                      //     if (enrollment) {
+                      //       const enrollmentStartDate = new Date(
+                      //         enrollment.startDate
+                      //       );
+                      //       enrollmentStartDate.setHours(0, 0, 0, 0);
+                      //       return classDateForFull >= enrollmentStartDate;
+                      //     }
+                      //     return true;
+                      //   });
 
                       // No maxStudents limit anymore
                       const isFull = false;
@@ -1530,7 +1530,7 @@ function ClassActionModal({
   date,
   onClose,
   onCancelClass,
-  onEditClass,
+  // onEditClass,
   onRequestAbsence,
   onRequestMakeup,
   attendanceRecords: propAttendanceRecords = [],

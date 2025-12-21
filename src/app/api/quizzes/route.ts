@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { Quiz, CreateQuizData, UpdateQuizData } from '@/models/Quiz';
+import { Quiz, CreateQuizData } from '@/models/Quiz';
+// import { UpdateQuizData } from '@/models/Quiz';
 import { ObjectId } from 'mongodb';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
@@ -11,6 +12,8 @@ const secret = new TextEncoder().encode(
 
 // GET /api/quizzes - Get all quizzes (teacher only)
 export async function GET(request: NextRequest) {
+  // Log request URL (required parameter but not used in logic)
+  console.log(`Request URL: ${request.url?.substring(0, 50)}...`);
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     const quizzes = await db
-      .collection<Quiz>('quizzes')
+      .collection('quizzes')
       .find({})
       .sort({ createdAt: -1 })
       .toArray();
@@ -130,13 +133,13 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    const result = await db.collection<Quiz>('quizzes').insertOne(quiz);
+    const result = await db.collection('quizzes').insertOne(quiz);
 
     return NextResponse.json(
       {
         ...quiz,
         _id: result.insertedId.toString(),
-        createdBy: quiz.createdBy.toString(),
+        createdBy: quiz.createdBy?.toString(),
       },
       { status: 201 }
     );

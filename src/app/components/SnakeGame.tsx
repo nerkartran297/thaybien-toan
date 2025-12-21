@@ -60,7 +60,7 @@ export default function SnakeGame({
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [leaderboardHighScore, setLeaderboardHighScore] = useState<number>(0);
-  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [, setTimeLeft] = useState<number>(0);
 
   const generateFood = useCallback((currentSnake: Position[]): Position => {
     let newFood: Position;

@@ -225,14 +225,14 @@ export default function GroupDetailPage() {
     }
   };
 
-  const formatSession = (session: {
-    dayOfWeek: number;
-    startTime: string;
-    endTime: string;
-  }) => {
-    const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-    return `${dayNames[session.dayOfWeek]}-${session.startTime}-${session.endTime}`;
-  };
+  // const formatSession = (session: {
+  //   dayOfWeek: number;
+  //   startTime: string;
+  //   endTime: string;
+  // }) => {
+  //   const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+  //   return `${dayNames[session.dayOfWeek]}-${session.startTime}-${session.endTime}`;
+  // };
 
   const filteredStudents = students.filter((student) => {
     const searchLower = searchTerm.toLowerCase();

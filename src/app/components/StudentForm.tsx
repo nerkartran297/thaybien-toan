@@ -31,7 +31,7 @@ const colors = {
 export default function StudentForm({
   student,
   courses,
-  classes,
+  // classes,
   onClose,
   onSave,
 }: StudentFormProps) {

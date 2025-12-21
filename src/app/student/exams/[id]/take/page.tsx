@@ -22,7 +22,7 @@ const ANSWER_OPTIONS: AnswerOption[] = ["A", "B", "C", "D"];
 export default function TakeExamPage() {
   const { user, loading: authLoading } = useAuth();
   const { activeAttempt, startExam, submitExam } = useExam();
-  const { isExamInProgress } = useBlockNavigation();
+  // const { isExamInProgress } = useBlockNavigation();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -61,7 +61,7 @@ export default function TakeExamPage() {
   // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as Window & { opera?: unknown }).opera;
+      const userAgent = (navigator.userAgent || navigator.vendor || (window as Window & { opera?: unknown }).opera) as string;
       const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
         userAgent.toLowerCase()
       );
@@ -207,7 +207,8 @@ export default function TakeExamPage() {
     }
   };
 
-  const createNewAttempt = async (timeLimit: number) => {
+  const createNewAttempt = async (_timeLimit: number) => {
+    console.log(`Time limit: ${_timeLimit} minutes`);
     const response = await fetch("/api/exam-attempts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -758,6 +759,7 @@ export default function TakeExamPage() {
                             selectedQuestionIndex === index
                               ? "white"
                               : colors.darkBrown,
+                          // @ts-expect-error - ringColor is a custom CSS property
                           ringColor: colors.brown,
                         }}
                       >

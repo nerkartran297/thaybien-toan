@@ -78,9 +78,9 @@ export async function POST(
     }
 
     // Get session
-    const session = await db.collection<QuizSession>('quizSessions').findOne({
+    const session = await db.collection('quizSessions').findOne({
       roomId: roomObjectId,
-    });
+    }) as QuizSession | null;
 
     if (!session) {
       return NextResponse.json(
@@ -109,11 +109,11 @@ export async function POST(
     }
 
     // Check if student already answered this question
-    const existingAnswer = await db.collection<QuizAnswer>('quizAnswers').findOne({
+    const existingAnswer = await db.collection('quizAnswers').findOne({
       sessionId: session._id,
       studentId: studentProfile._id,
       questionIndex: session.currentQuestionIndex,
-    });
+    }) as QuizAnswer | null;
 
     if (existingAnswer) {
       return NextResponse.json(
@@ -123,9 +123,9 @@ export async function POST(
     }
 
     // Get quiz to check correct answer
-    const quiz = await db.collection<Quiz>('quizzes').findOne({
+    const quiz = await db.collection('quizzes').findOne({
       _id: session.quizId,
-    });
+    }) as Quiz | null;
 
     if (!quiz) {
       return NextResponse.json(
@@ -174,7 +174,7 @@ export async function POST(
       updatedAt: new Date(),
     };
 
-    await db.collection<QuizAnswer>('quizAnswers').insertOne(quizAnswer);
+    await db.collection('quizAnswers').insertOne(quizAnswer);
 
     // Update or create student score
     const studentScore = await db.collection('quizStudentScores').findOne({

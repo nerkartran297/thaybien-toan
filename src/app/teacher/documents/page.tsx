@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { Document, DocumentCategory, CreateDocumentData } from "@/models/Document";
+import { Document, DocumentCategory } from "@/models/Document";
+// import { CreateDocumentData } from "@/models/Document";
 import { Class } from "@/models/Class";
 
 const colors = {
@@ -205,15 +206,15 @@ export default function DocumentsManagementPage() {
     }
   };
 
-  const getClassNames = (classIds: string[]) => {
-    return classIds
-      .map((id) => {
-        const cls = classes.find((c) => c._id?.toString() === id);
-        return cls?.name;
-      })
-      .filter(Boolean)
-      .join(", ");
-  };
+  // const getClassNames = (classIds: string[]) => {
+  //   return classIds
+  //     .map((id) => {
+  //       const cls = classes.find((c) => c._id?.toString() === id);
+  //       return cls?.name;
+  //     })
+  //     .filter(Boolean)
+  //     .join(", ");
+  // };
 
   const filteredDocuments = documents.filter((doc) => {
     if (selectedCategory !== "Tất cả" && doc.category !== selectedCategory) {

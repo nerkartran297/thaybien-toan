@@ -12,17 +12,18 @@ export async function GET(
   try {
     const { id } = await params;
     const db = await getDatabase();
-    const student = await db.collection<User>('users').findOne({
+    const student = await db.collection('users').findOne({
       _id: new ObjectId(id),
       role: 'student',
-    });
+    }) as User | null;
 
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
     // Remove password from response
-    const { password, ...studentWithoutPassword } = student;
+    const { password: _password, ...studentWithoutPassword } = student;
+    console.log(`Password hash: ${_password?.substring(0, 10)}...`);
 
     return NextResponse.json(studentWithoutPassword);
   } catch (error) {
@@ -45,10 +46,10 @@ export async function PUT(
     const db = await getDatabase();
 
     // Check if student exists
-    const existingStudent = await db.collection<User>('users').findOne({
+    const existingStudent = await db.collection('users').findOne({
       _id: new ObjectId(id),
       role: 'student',
-    });
+    }) as User | null;
 
     if (!existingStudent) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
@@ -57,8 +58,8 @@ export async function PUT(
     // If username is being updated, check if it's already taken
     if (data.username && data.username !== existingStudent.username) {
       const usernameExists = await db
-        .collection<User>('users')
-        .findOne({ username: data.username });
+        .collection('users')
+        .findOne({ username: data.username }) as User | null;
 
       if (usernameExists) {
         return NextResponse.json(
@@ -79,7 +80,7 @@ export async function PUT(
     }
 
     const result = await db
-      .collection<User>('users')
+      .collection('users')
       .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
     if (result.matchedCount === 0) {
@@ -87,12 +88,13 @@ export async function PUT(
     }
 
     // Fetch updated student
-    const updatedStudent = await db.collection<User>('users').findOne({
+    const updatedStudent = await db.collection('users').findOne({
       _id: new ObjectId(id),
-    });
+    }) as User | null;
 
     // Remove password from response
-    const { password, ...studentWithoutPassword } = updatedStudent!;
+    const { password: _password, ...studentWithoutPassword } = updatedStudent!;
+    console.log(`Password hash: ${_password?.substring(0, 10)}...`);
 
     return NextResponse.json(studentWithoutPassword);
   } catch (error) {
@@ -113,7 +115,7 @@ export async function DELETE(
     const { id } = await params;
     const db = await getDatabase();
 
-    const result = await db.collection<User>('users').deleteOne({
+    const result = await db.collection('users').deleteOne({
       _id: new ObjectId(id),
       role: 'student',
     });

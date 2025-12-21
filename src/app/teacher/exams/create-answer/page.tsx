@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,7 +18,7 @@ const CATEGORIES: ExamCategory[] = ["Đề giữa kỳ", "Đề cuối kỳ", "�
 const GRADES = [6, 7, 8, 9, 10, 11, 12];
 const ANSWER_OPTIONS: AnswerOption[] = ["A", "B", "C", "D"];
 
-export default function CreateAnswerPage() {
+function CreateAnswerPageContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -479,6 +479,14 @@ export default function CreateAnswerPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CreateAnswerPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CreateAnswerPageContent />
+    </Suspense>
   );
 }
 

@@ -70,20 +70,23 @@ export async function GET() {
       examId?: ObjectId;
       quizId?: ObjectId;
     };
-    const formattedRooms = rooms.map((room: RoomWithExtras) => ({
-      id: room._id.toString(),
-      code: room.code,
-      name: room.name,
-      activityType: room.activityType || room.gameType || 'snake',
-      gameType: room.activityType || room.gameType || 'snake', // Keep for backward compatibility
-      startTime: room.startTime,
-      endTime: room.endTime,
-      duration: room.duration,
-      isActive: room.isActive,
-      createdAt: room.createdAt,
-      examId: room.examId?.toString(),
-      quizId: room.quizId?.toString(),
-    }));
+    const formattedRooms = rooms.map((room) => {
+      const roomWithExtras = room as unknown as RoomWithExtras;
+      return {
+      id: roomWithExtras._id.toString(),
+      code: roomWithExtras.code,
+      name: roomWithExtras.name,
+      activityType: roomWithExtras.activityType || roomWithExtras.gameType || 'snake',
+      gameType: roomWithExtras.activityType || roomWithExtras.gameType || 'snake', // Keep for backward compatibility
+      startTime: roomWithExtras.startTime,
+      endTime: roomWithExtras.endTime,
+      duration: roomWithExtras.duration,
+      isActive: roomWithExtras.isActive,
+      createdAt: roomWithExtras.createdAt,
+      examId: roomWithExtras.examId?.toString(),
+      quizId: roomWithExtras.quizId?.toString(),
+      };
+    });
 
     return NextResponse.json(formattedRooms);
   } catch (error) {

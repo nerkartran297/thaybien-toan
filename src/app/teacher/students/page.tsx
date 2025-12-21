@@ -273,7 +273,7 @@ export default function StudentsManagementPage() {
   const filteredStudents = students.filter(
     (student) =>
       student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase())
+      student.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (authLoading || loading) {
@@ -397,7 +397,7 @@ export default function StudentsManagementPage() {
                       className="px-6 py-4 text-sm"
                       style={{ color: colors.brown }}
                     >
-                      {student.email}
+                      {student.email || 'N/A'}
                     </td>
                     <td
                       className="px-6 py-4 text-sm"

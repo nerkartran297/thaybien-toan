@@ -84,9 +84,9 @@ export async function GET(
     }
 
     // Get session
-    const session = await db.collection<QuizSession>('quizSessions').findOne({
+    const session = await db.collection('quizSessions').findOne({
       roomId: roomObjectId,
-    });
+    }) as QuizSession | null;
 
     if (!session) {
       return NextResponse.json(
@@ -96,11 +96,11 @@ export async function GET(
     }
 
     // Check if student has answered this question
-    const answer = await db.collection<QuizAnswer>('quizAnswers').findOne({
+    const answer = await db.collection('quizAnswers').findOne({
       sessionId: session._id,
       studentId: studentProfile._id,
       questionIndex: questionIndex,
-    });
+    }) as QuizAnswer | null;
 
     return NextResponse.json({
       hasAnswered: !!answer,

@@ -31,7 +31,7 @@ export default function ExamResultsPage() {
 
   const [exam, setExam] = useState<Exam | null>(null);
   const [attempts, setAttempts] = useState<AttemptWithStudentInfo[]>([]);
-  const [allClasses, setAllClasses] = useState<Class[]>([]);
+  const [, setAllClasses] = useState<Class[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>("Tất cả");
   const [loading, setLoading] = useState(true);
 

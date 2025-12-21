@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Build query based on scope
-    const profileQuery: Record<string, unknown> = {};
+    let profileQuery: Record<string, unknown> = {};
 
     if (user.role === 'student') {
       // Students can only see their own class and grade
@@ -144,7 +144,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get date range based on period
-    const { start, end } = getDateRange(period);
+    const { start } = getDateRange(period);
+    // const { start, end } = getDateRange(period);
 
     // Get all student profiles matching the query
     // Debug: log the query

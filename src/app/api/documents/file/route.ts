@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { getDatabase } from '@/lib/mongodb';
-import { User } from '@/models/User';
-import { Document } from '@/models/Document';
+// import { User } from '@/models/User';
+// import { Document } from '@/models/Document';
 import { ObjectId } from 'mongodb';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     // Get user from database
     const db = await getDatabase();
     const user = await db
-      .collection<User>('users')
+      .collection('users')
       .findOne({ _id: new ObjectId(userId) });
 
     if (!user) {
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     // Find document by file path
     const document = await db
-      .collection<Document>('documents')
+      .collection('documents')
       .findOne({ filePath });
 
     if (!document) {
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 
       const studentClassIds = studentClasses.map((cls) => cls._id);
 
-      const hasAccess = document.classes.some((docClassId) => {
+      const hasAccess = document.classes.some((docClassId: ObjectId | string) => {
         const docClassIdStr = typeof docClassId === 'string' ? docClassId : docClassId.toString();
         return studentClassIds.some((studentClassId) => {
           const studentClassIdStr = studentClassId.toString();

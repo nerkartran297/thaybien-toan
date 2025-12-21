@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { MakeupRequest, CreateMakeupRequestData } from '@/models/MakeupRequest';
-import { StudentEnrollment } from '@/models/StudentEnrollment';
-import { Class } from '@/models/Class';
+// import { StudentEnrollment } from '@/models/StudentEnrollment';
+// import { Class } from '@/models/Class';
 import { ObjectId } from 'mongodb';
 
 // GET /api/makeups - Get all makeup requests
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     const makeups = await db
-      .collection<MakeupRequest>('makeupRequests')
+      .collection('makeupRequests')
       .find(query)
       .toArray();
 
@@ -82,9 +82,12 @@ export async function POST(request: NextRequest) {
 
     // Check if new class has available slots
     if (data.newClassId) {
+      const newClassIdObj = typeof data.newClassId === 'string' 
+        ? new ObjectId(data.newClassId) 
+        : data.newClassId;
       const newClass = await db
-        .collection<Class>('classes')
-        .findOne({ _id: new ObjectId(data.newClassId) });
+        .collection('classes')
+        .findOne({ _id: newClassIdObj });
 
       if (!newClass) {
         return NextResponse.json({ error: 'New class not found' }, { status: 404 });
@@ -98,12 +101,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const studentIdObj = typeof data.studentId === 'string' 
+      ? new ObjectId(data.studentId) 
+      : data.studentId;
+    const enrollmentIdObj = typeof data.enrollmentId === 'string' 
+      ? new ObjectId(data.enrollmentId) 
+      : data.enrollmentId;
+    const originalClassIdObj = data.originalClassId 
+      ? (typeof data.originalClassId === 'string' ? new ObjectId(data.originalClassId) : data.originalClassId)
+      : undefined;
+    const newClassIdObj = data.newClassId 
+      ? (typeof data.newClassId === 'string' ? new ObjectId(data.newClassId) : data.newClassId)
+      : undefined;
+
     const makeupRequest: MakeupRequest = {
-      studentId: new ObjectId(data.studentId),
-      enrollmentId: new ObjectId(data.enrollmentId),
-      originalClassId: data.originalClassId ? new ObjectId(data.originalClassId) : undefined,
+      studentId: studentIdObj,
+      enrollmentId: enrollmentIdObj,
+      originalClassId: originalClassIdObj,
       originalSessionDate: new Date(data.originalSessionDate),
-      newClassId: data.newClassId ? new ObjectId(data.newClassId) : undefined,
+      newClassId: newClassIdObj,
       newSessionDate,
       reason: data.reason,
       requestedAt: now,
@@ -113,7 +129,7 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await db
-      .collection<MakeupRequest>('makeupRequests')
+      .collection('makeupRequests')
       .insertOne(makeupRequest);
 
     // NOTE: Do NOT add student to enrolledStudents for makeup classes

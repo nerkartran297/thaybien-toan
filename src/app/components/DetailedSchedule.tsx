@@ -43,8 +43,8 @@ export default function DetailedSchedule({
   totalSessions,
   completedSessions,
   remainingSessions,
-  onRequestMakeup,
-  onBookMakeup,
+  // onRequestMakeup,
+  // onBookMakeup,
 }: DetailedScheduleProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showMakeupModal, setShowMakeupModal] = useState(false);
@@ -163,13 +163,13 @@ export default function DetailedSchedule({
     return dates;
   };
 
-  const calculateCourseEndDate = (startDate: string, frequency: number) => {
-    const start = new Date(startDate);
-    const weeks = frequency === 1 ? 18 : 9; // 18 weeks for 1 session/week, 9 weeks for 2 sessions/week
-    const end = new Date(start);
-    end.setDate(start.getDate() + weeks * 7);
-    return end;
-  };
+  // const calculateCourseEndDate = (startDate: string, frequency: number) => {
+  //   const start = new Date(startDate);
+  //   const weeks = frequency === 1 ? 18 : 9; // 18 weeks for 1 session/week, 9 weeks for 2 sessions/week
+  //   const end = new Date(start);
+  //   end.setDate(start.getDate() + weeks * 7);
+  //   return end;
+  // };
 
   const getSlotStatus = (
     classSchedule: ClassSchedule,

@@ -12,7 +12,7 @@ export interface CalendarProps {
 }
 
 const Calendar = ({
-  mode = "single",
+  // mode = "single",
   selected,
   onSelect,
   className,

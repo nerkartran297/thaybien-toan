@@ -107,13 +107,13 @@ export const ToastStack = () => {
 
   if (toasts.length === 0) return null;
 
-  const colors = {
-    light: "#F0EAD2",
-    lightGreen: "#DDE5B6",
-    mediumGreen: "#ADC178",
-    brown: "#A98467",
-    darkBrown: "#6C584C",
-  };
+  // const colors = {
+  //   light: "#F0EAD2",
+  //   lightGreen: "#DDE5B6",
+  //   mediumGreen: "#ADC178",
+  //   brown: "#A98467",
+  //   darkBrown: "#6C584C",
+  // };
 
   return (
     <div className="fixed bottom-0 right-0 z-50 flex flex-col gap-2 p-3 sm:p-6 pointer-events-none">

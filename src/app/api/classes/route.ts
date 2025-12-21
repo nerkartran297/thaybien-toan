@@ -23,13 +23,13 @@ export async function GET(request: NextRequest) {
       query.isActive = isActive === 'true';
     }
 
-    const classes = await db.collection<Class>('classes').find(query).toArray();
+    const classes = await db.collection('classes').find(query).toArray();
 
     // Serialize ObjectIds in enrolledStudents to strings for easier comparison on client
     const serializedClasses = classes.map(cls => ({
       ...cls,
       _id: cls._id?.toString(),
-      enrolledStudents: cls.enrolledStudents?.map(id => 
+      enrolledStudents: cls.enrolledStudents?.map((id: ObjectId | string) => 
         typeof id === 'string' ? id : id?.toString()
       ) || [],
     }));
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     // Check for time conflicts with existing classes
     // All classes repeat weekly, so check conflicts on the same dayOfWeek
-    const existingClasses = await db.collection<Class>('classes').find({
+    const existingClasses = await db.collection('classes').find({
       isActive: true,
       grade: data.grade,
     }).toArray();
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    const result = await db.collection<Class>('classes').insertOne(classData);
+    const result = await db.collection('classes').insertOne(classData);
 
     return NextResponse.json(
       { ...classData, _id: result.insertedId },

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Navigation from "@/app/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { Exam, ExamCategory, CreateExamData } from "@/models/Exam";
+import { Exam, ExamCategory } from "@/models/Exam";
+// import { CreateExamData } from "@/models/Exam";
 import { Class } from "@/models/Class";
 
 const colors = {

@@ -170,9 +170,9 @@ export default function TeacherQuizzesPage() {
   const updateQuestion = (index: number, field: string, value: unknown) => {
     const updatedQuestions = [...formData.questions];
     if (field === "options") {
-      updatedQuestions[index].options = { ...updatedQuestions[index].options, ...(value as Record<string, string>) };
+      updatedQuestions[index].options = { ...updatedQuestions[index].options, ...(value as unknown as Record<string, string>) };
     } else {
-      (updatedQuestions[index] as Record<string, unknown>)[field] = value;
+      (updatedQuestions[index] as unknown as Record<string, unknown>)[field] = value;
     }
     setFormData({
       ...formData,

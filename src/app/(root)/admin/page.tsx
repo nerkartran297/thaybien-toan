@@ -29,10 +29,10 @@ export default function AdminPage() {
     }
   };
 
-  const handleEdit = (product: Product) => {
-    setEditingProduct(product);
-    setShowForm(true);
-  };
+  // const handleEdit = (product: Product) => {
+  //   setEditingProduct(product);
+  //   setShowForm(true);
+  // };
 
   const handleDelete = async (id: number) => {
     if (confirm("Bạn có chắc muốn xóa sản phẩm này?")) {

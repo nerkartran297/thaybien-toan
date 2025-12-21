@@ -36,6 +36,7 @@ async function verifyStudent() {
 
     return null;
   } catch (error) {
+    console.log(`Auth error: ${String(error).substring(0, 20)}...`);
     return null;
   }
 }
@@ -55,11 +56,11 @@ export async function GET(
     const db = await getDatabase();
 
     const attempt = await db
-      .collection<ExamAttempt>('examAttempts')
+      .collection('examAttempts')
       .findOne({
         _id: new ObjectId(id),
         studentId: new ObjectId(auth.userId), // Ensure student can only access their own attempts
-      });
+      }) as ExamAttempt | null;
 
     if (!attempt) {
       return NextResponse.json({ error: 'Exam attempt not found' }, { status: 404 });
@@ -97,11 +98,11 @@ export async function PUT(
     const db = await getDatabase();
 
     const existingAttempt = await db
-      .collection<ExamAttempt>('examAttempts')
+      .collection('examAttempts')
       .findOne({
         _id: new ObjectId(id),
         studentId: new ObjectId(auth.userId),
-      });
+      }) as ExamAttempt | null;
 
     if (!existingAttempt) {
       return NextResponse.json({ error: 'Exam attempt not found' }, { status: 404 });
@@ -131,8 +132,8 @@ export async function PUT(
 
       // Get exam to compare answers
       const exam = await db
-        .collection<Exam>('exams')
-        .findOne({ _id: existingAttempt.examId });
+        .collection('exams')
+        .findOne({ _id: existingAttempt.examId }) as Exam | null;
 
       if (exam && exam.answers) {
         // Calculate score
@@ -148,7 +149,7 @@ export async function PUT(
     }
 
     const result = await db
-      .collection<ExamAttempt>('examAttempts')
+      .collection('examAttempts')
       .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
     if (result.matchedCount === 0) {
@@ -156,8 +157,8 @@ export async function PUT(
     }
 
     const updated = await db
-      .collection<ExamAttempt>('examAttempts')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('examAttempts')
+      .findOne({ _id: new ObjectId(id) }) as ExamAttempt | null;
 
     return NextResponse.json({
       ...updated,

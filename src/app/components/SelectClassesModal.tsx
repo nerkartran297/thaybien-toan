@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+// import { useEffect } from "react";
 import { Class } from "@/models/Class";
 import { StudentEnrollment } from "@/models/StudentEnrollment";
 
@@ -28,53 +29,32 @@ export default function SelectClassesModal({
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Filter classes by courseId and available slots
-  const availableClasses = classes.filter(
-    (cls) =>
-      cls.courseId.toString() === enrollment.courseId.toString() &&
-      cls.isActive &&
-      cls.enrolledStudents.length < cls.maxStudents
-  );
+  // Filter classes by active status
+  const availableClasses = classes.filter((cls) => cls.isActive);
 
-  // Group classes by seriesId (for repeating classes)
+  // Group classes (no longer using seriesId)
   const classGroups = new Map<string, Class[]>();
   const singleClasses: Class[] = [];
 
   availableClasses.forEach((cls) => {
-    if (cls.seriesId) {
-      const seriesKey = cls.seriesId.toString();
-      if (!classGroups.has(seriesKey)) {
-        classGroups.set(seriesKey, []);
-      }
-      classGroups.get(seriesKey)!.push(cls);
-    } else {
-      singleClasses.push(cls);
+    // Group by class name or _id since seriesId no longer exists
+    const groupKey = cls._id?.toString() || cls.name;
+    if (!classGroups.has(groupKey)) {
+      classGroups.set(groupKey, []);
     }
+    classGroups.get(groupKey)!.push(cls);
   });
 
   // Get all class IDs in a series
   const getSeriesClassIds = (classId: string): string[] => {
-    const cls = availableClasses.find((c) => c._id?.toString() === classId);
-    if (!cls || !cls.seriesId) {
-      return [classId]; // Single class
-    }
-    // Return all classes in the series
-    const series = classGroups.get(cls.seriesId.toString()) || [];
-    return series.map((c) => c._id!.toString());
+    // Since seriesId no longer exists, each class is treated as a single class
+    return [classId];
   };
 
-  // Count unique series/single classes from selected class IDs
+  // Count unique classes from selected class IDs
   const countSelectedSeries = (classIds: string[]): number => {
-    const selectedSeries = new Set<string>();
-    classIds.forEach((classId) => {
-      const cls = availableClasses.find((c) => c._id?.toString() === classId);
-      if (cls?.seriesId) {
-        selectedSeries.add(cls.seriesId.toString());
-      } else {
-        selectedSeries.add(classId); // Single class uses its own ID as key
-      }
-    });
-    return selectedSeries.size;
+    // Since seriesId no longer exists, just return the count of selected classes
+    return classIds.length;
   };
 
   const handleToggleClass = (classId: string) => {
@@ -172,37 +152,26 @@ export default function SelectClassesModal({
             <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
               {/* Show grouped repeating classes */}
               {Array.from(classGroups.entries()).map(
-                ([seriesId, seriesClasses]) => {
+                ([groupKey, seriesClasses]) => {
                   const firstClass = seriesClasses[0];
                   const isSelected = selectedClasses.some((id) =>
                     seriesClasses.some((c) => c._id?.toString() === id)
                   );
-                  const dayName =
-                    firstClass.dayOfWeek !== undefined
-                      ? dayNames[firstClass.dayOfWeek]
-                      : "";
-                  const timeStr = firstClass.startTime
-                    ? new Date(firstClass.startTime).toLocaleTimeString(
-                        "vi-VN",
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )
+                  const firstSession =
+                    firstClass.sessions && firstClass.sessions.length > 0
+                      ? firstClass.sessions[0]
+                      : null;
+                  const dayName = firstSession
+                    ? dayNames[firstSession.dayOfWeek]
                     : "";
-                  const endTimeStr = firstClass.endTime
-                    ? new Date(firstClass.endTime).toLocaleTimeString("vi-VN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "";
-                  const isFull = seriesClasses.some(
-                    (c) => c.enrolledStudents.length >= c.maxStudents
-                  );
+                  const timeStr = firstSession?.startTime || "";
+                  const endTimeStr = firstSession?.endTime || "";
+                  // Remove maxStudents check since it no longer exists
+                  const isFull = false;
 
                   return (
                     <div
-                      key={seriesId}
+                      key={groupKey}
                       onClick={() =>
                         !isFull && handleToggleClass(firstClass._id!.toString())
                       }
@@ -237,14 +206,7 @@ export default function SelectClassesModal({
                             className="text-xs mt-1"
                             style={{ color: colors.brown }}
                           >
-                            {seriesClasses.length} buổi học • Từ{" "}
-                            {new Date(
-                              seriesClasses[0].startTime
-                            ).toLocaleDateString("vi-VN")}{" "}
-                            đến{" "}
-                            {new Date(
-                              seriesClasses[seriesClasses.length - 1].startTime
-                            ).toLocaleDateString("vi-VN")}
+                            {seriesClasses.length} buổi học
                           </div>
                         </div>
                         <div className="ml-4">
@@ -279,24 +241,20 @@ export default function SelectClassesModal({
 
               {/* Show single classes */}
               {singleClasses.map((cls) => {
-                const dayName =
-                  cls.dayOfWeek !== undefined ? dayNames[cls.dayOfWeek] : "";
-                const timeStr = cls.startTime
-                  ? new Date(cls.startTime).toLocaleTimeString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
+                const firstSession =
+                  cls.sessions && cls.sessions.length > 0
+                    ? cls.sessions[0]
+                    : null;
+                const dayName = firstSession
+                  ? dayNames[firstSession.dayOfWeek]
                   : "";
-                const endTimeStr = cls.endTime
-                  ? new Date(cls.endTime).toLocaleTimeString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "";
+                const timeStr = firstSession?.startTime || "";
+                const endTimeStr = firstSession?.endTime || "";
                 const isSelected = selectedClasses.includes(
                   cls._id!.toString()
                 );
-                const isFull = cls.enrolledStudents.length >= cls.maxStudents;
+                // Remove maxStudents check since it no longer exists
+                const isFull = false;
 
                 return (
                   <div
@@ -331,8 +289,7 @@ export default function SelectClassesModal({
                           className="text-xs mt-1"
                           style={{ color: colors.brown }}
                         >
-                          {cls.enrolledStudents.length}/{cls.maxStudents} học
-                          viên
+                          {cls.enrolledStudents.length} học viên
                         </div>
                       </div>
                       <div className="ml-4">

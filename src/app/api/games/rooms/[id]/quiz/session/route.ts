@@ -87,9 +87,9 @@ export async function GET(
     }
 
     // Get or create quiz session
-    let session = await db.collection<QuizSession>('quizSessions').findOne({
+    let session = await db.collection('quizSessions').findOne({
       roomId: roomObjectId,
-    });
+    }) as QuizSession | null;
 
     if (!session) {
       // Create new session
@@ -103,7 +103,7 @@ export async function GET(
         updatedAt: new Date(),
       };
 
-      const result = await db.collection<QuizSession>('quizSessions').insertOne(newSession);
+      const result = await db.collection('quizSessions').insertOne(newSession);
       session = { ...newSession, _id: result.insertedId };
     }
 

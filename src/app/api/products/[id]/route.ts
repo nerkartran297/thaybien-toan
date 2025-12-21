@@ -62,15 +62,19 @@ export async function GET(
     const db = await getDatabase();
     
     // Try to find by numeric ID first (since our products use numeric IDs)
-    let product = await db.collection<Product>('products').findOne({
+    let product = await db.collection('products').findOne({
       id: parseInt(id)
-    });
+    }) as Product | null;
     
     // If not found by numeric ID, try by MongoDB _id
-    if (!product && ObjectId.isValid(id)) {
-      product = await db.collection<Product>('products').findOne({
-        _id: new ObjectId(id)
-      });
+    if (!product) {
+      try {
+        product = await db.collection('products').findOne({
+          _id: new ObjectId(id)
+        }) as Product | null;
+      } catch {
+        // Invalid ObjectId, skip
+      }
     }
     
     if (!product) {
@@ -108,14 +112,14 @@ export async function PUT(
     };
     
     // Try to update by numeric ID first
-    let result = await db.collection<Product>('products').updateOne(
+    let result = await db.collection('products').updateOne(
       { id: parseInt(id) },
       { $set: updateData }
     );
     
     // If not found by numeric ID, try by MongoDB _id
-    if (result.matchedCount === 0 && ObjectId.isValid(id)) {
-      result = await db.collection<Product>('products').updateOne(
+    if (result.matchedCount === 0 && true) {
+      result = await db.collection('products').updateOne(
         { _id: new ObjectId(id) },
         { $set: updateData }
       );
@@ -129,14 +133,14 @@ export async function PUT(
     }
     
     // Find and return updated product
-    let updatedProduct = await db.collection<Product>('products').findOne({
+    let updatedProduct = await db.collection('products').findOne({
       id: parseInt(id)
-    });
+    }) as Product | null;
     
-    if (!updatedProduct && ObjectId.isValid(id)) {
-      updatedProduct = await db.collection<Product>('products').findOne({
+    if (!updatedProduct && true) {
+      updatedProduct = await db.collection('products').findOne({
         _id: new ObjectId(id)
-      });
+      }) as Product | null;
     }
     
     return NextResponse.json(updatedProduct);
@@ -159,13 +163,13 @@ export async function DELETE(
     const db = await getDatabase();
     
     // Try to delete by numeric ID first
-    let result = await db.collection<Product>('products').deleteOne({
+    let result = await db.collection('products').deleteOne({
       id: parseInt(id)
     });
     
     // If not found by numeric ID, try by MongoDB _id
-    if (result.deletedCount === 0 && ObjectId.isValid(id)) {
-      result = await db.collection<Product>('products').deleteOne({
+    if (result.deletedCount === 0 && true) {
+      result = await db.collection('products').deleteOne({
         _id: new ObjectId(id)
       });
     }

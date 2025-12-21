@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 
     const enrollments = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .find(query)
       .toArray();
 
@@ -96,10 +96,13 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
 
     // Check if student already has an active enrollment
+    const studentIdObj = typeof data.studentId === 'string' 
+      ? new ObjectId(data.studentId) 
+      : data.studentId;
     const existingEnrollment = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .findOne({
-        studentId: new ObjectId(data.studentId),
+        studentId: studentIdObj,
         status: { $in: ['pending', 'active'] },
       });
 
@@ -116,9 +119,13 @@ export async function POST(request: NextRequest) {
     const totalSessions = calculateTotalSessions(data.frequency, paymentMode, customWeeks);
     const endDate = calculateEndDate(startDate, data.frequency, paymentMode, customWeeks);
 
+    const courseIdObj = typeof data.courseId === 'string' 
+      ? new ObjectId(data.courseId) 
+      : data.courseId;
+
     const enrollment: StudentEnrollment = {
-      studentId: new ObjectId(data.studentId),
-      courseId: new ObjectId(data.courseId),
+      studentId: studentIdObj,
+      courseId: courseIdObj,
       frequency: data.frequency,
       startDate,
       endDate,
@@ -135,7 +142,7 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .insertOne(enrollment);
 
     return NextResponse.json(

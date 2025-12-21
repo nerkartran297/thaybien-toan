@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         updateData.note = item.note;
       }
 
-      return db.collection<User>('users').updateOne(
+      return db.collection('users').updateOne(
         { _id: new ObjectId(item.studentId), role: 'student' },
         { $set: updateData }
       );

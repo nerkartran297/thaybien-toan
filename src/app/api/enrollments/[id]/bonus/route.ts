@@ -21,8 +21,8 @@ export async function POST(
 
     const db = await getDatabase();
     const enrollment = await db
-      .collection<StudentEnrollment>('enrollments')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('enrollments')
+      .findOne({ _id: new ObjectId(id) }) as StudentEnrollment | null;
 
     if (!enrollment) {
       return NextResponse.json({ error: 'Enrollment not found' }, { status: 404 });
@@ -44,7 +44,7 @@ export async function POST(
     }
 
     const result = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .updateOne(
         { _id: new ObjectId(id) },
         {
@@ -61,8 +61,8 @@ export async function POST(
     }
 
     const updatedEnrollment = await db
-      .collection<StudentEnrollment>('enrollments')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('enrollments')
+      .findOne({ _id: new ObjectId(id) }) as StudentEnrollment | null;
 
     return NextResponse.json(updatedEnrollment);
   } catch (error) {

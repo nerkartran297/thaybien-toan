@@ -12,8 +12,8 @@ export async function GET(
     const { id } = await params;
     const db = await getDatabase();
     const attendance = await db
-      .collection<Attendance>('attendance')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('attendance')
+      .findOne({ _id: new ObjectId(id) }) as Attendance | null;
 
     if (!attendance) {
       return NextResponse.json({ error: 'Attendance not found' }, { status: 404 });
@@ -41,8 +41,8 @@ export async function PUT(
 
     // Check if attendance exists
     const existingAttendance = await db
-      .collection<Attendance>('attendance')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('attendance')
+      .findOne({ _id: new ObjectId(id) }) as Attendance | null;
 
     if (!existingAttendance) {
       return NextResponse.json({ error: 'Attendance not found' }, { status: 404 });
@@ -54,7 +54,7 @@ export async function PUT(
     };
 
     const result = await db
-      .collection<Attendance>('attendance')
+      .collection('attendance')
       .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
     if (result.matchedCount === 0) {
@@ -63,8 +63,8 @@ export async function PUT(
 
     // Fetch updated attendance
     const updatedAttendance = await db
-      .collection<Attendance>('attendance')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('attendance')
+      .findOne({ _id: new ObjectId(id) }) as Attendance | null;
 
     return NextResponse.json(updatedAttendance);
   } catch (error) {
@@ -87,8 +87,8 @@ export async function DELETE(
 
     // Check if attendance exists
     const existingAttendance = await db
-      .collection<Attendance>('attendance')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('attendance')
+      .findOne({ _id: new ObjectId(id) }) as Attendance | null;
 
     if (!existingAttendance) {
       return NextResponse.json({ error: 'Attendance not found' }, { status: 404 });
@@ -96,7 +96,7 @@ export async function DELETE(
 
     // Delete attendance
     const result = await db
-      .collection<Attendance>('attendance')
+      .collection('attendance')
       .deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {

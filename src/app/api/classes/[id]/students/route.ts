@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { Class } from '@/models/Class';
+// import { StudentEnrollment } from '@/models/StudentEnrollment';
 import { ObjectId } from 'mongodb';
 
 // POST /api/classes/[id]/students - Add student to class
@@ -23,8 +24,8 @@ export async function POST(
 
     // Check if class exists
     const classData = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     if (!classData) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -41,7 +42,7 @@ export async function POST(
 
     // Add student to class
     const result = await db
-      .collection<Class>('classes')
+      .collection('classes')
       .updateOne(
         { _id: new ObjectId(id) },
         {
@@ -56,9 +57,8 @@ export async function POST(
 
     // Update enrollment status from pending to active if exists
     // Find enrollment with pending status for this student
-    const { StudentEnrollment } = await import('@/models/StudentEnrollment');
     const pendingEnrollment = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .findOne({
         studentId: studentObjectId,
         status: 'pending',
@@ -67,7 +67,7 @@ export async function POST(
     if (pendingEnrollment) {
       // Update enrollment status to active
       await db
-        .collection<StudentEnrollment>('enrollments')
+        .collection('enrollments')
         .updateOne(
           { _id: pendingEnrollment._id },
           {
@@ -93,8 +93,8 @@ export async function POST(
 
     // Fetch updated class
     const updatedClass = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     return NextResponse.json(updatedClass);
   } catch (error) {
@@ -127,21 +127,40 @@ export async function DELETE(
 
     // Check if class exists
     const classData = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     if (!classData) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
     }
 
     // Remove student from class
+    const studentObjectId = new ObjectId(studentId);
+    
+    // Fetch class and filter out the student
+    const classToUpdate = await db
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
+    
+    if (!classToUpdate) {
+      return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+    }
+    
+    // Filter out the student from enrolledStudents array
+    const updatedEnrolledStudents = classToUpdate.enrolledStudents.filter(
+      (enrolledId) => enrolledId.toString() !== studentObjectId.toString()
+    );
+    
+    // Update class with filtered array
     const result = await db
-      .collection<Class>('classes')
+      .collection('classes')
       .updateOne(
         { _id: new ObjectId(id) },
         {
-          $pull: { enrolledStudents: new ObjectId(studentId) },
-          $set: { updatedAt: new Date() },
+          $set: {
+            enrolledStudents: updatedEnrolledStudents,
+            updatedAt: new Date(),
+          },
         }
       );
 
@@ -150,9 +169,8 @@ export async function DELETE(
     }
 
     // Check if student is still in any other class
-    const studentObjectId = new ObjectId(studentId);
     const otherClasses = await db
-      .collection<Class>('classes')
+      .collection('classes')
       .find({
         enrolledStudents: studentObjectId,
         _id: { $ne: new ObjectId(id) },
@@ -190,8 +208,8 @@ export async function DELETE(
 
     // Fetch updated class
     const updatedClass = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     return NextResponse.json(updatedClass);
   } catch (error) {

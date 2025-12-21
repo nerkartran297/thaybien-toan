@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { ExamAttempt, CreateExamAttemptData } from '@/models/ExamAttempt';
-import { Exam } from '@/models/Exam';
+// import { Exam } from '@/models/Exam';
+import { AnswerOption } from '@/models/Exam';
 import { ObjectId } from 'mongodb';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
@@ -36,6 +37,7 @@ async function verifyStudent() {
 
     return null;
   } catch (error) {
+    console.log(`Auth error: ${String(error).substring(0, 20)}...`);
     return null;
   }
 }
@@ -66,6 +68,7 @@ async function verifyTeacher() {
 
     return null;
   } catch (error) {
+    console.log(`Auth error: ${String(error).substring(0, 20)}...`);
     return null;
   }
 }
@@ -88,7 +91,7 @@ export async function GET(request: NextRequest) {
 
       // Get all submitted attempts for this exam
       const attempts = await db
-        .collection<ExamAttempt>('examAttempts')
+        .collection('examAttempts')
         .find({
           examId: new ObjectId(examId),
           submittedAt: { $exists: true, $ne: null },
@@ -122,7 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     const attempts = await db
-      .collection<ExamAttempt>('examAttempts')
+      .collection('examAttempts')
       .find(query)
       .sort({ createdAt: -1 })
       .toArray();
@@ -158,7 +161,7 @@ export async function POST(request: NextRequest) {
 
     // Verify exam exists and get total questions
     const exam = await db
-      .collection<Exam>('exams')
+      .collection('exams')
       .findOne({ _id: new ObjectId(data.examId) });
 
     if (!exam) {
@@ -175,7 +178,7 @@ export async function POST(request: NextRequest) {
     const totalQuestions = exam.answers.length;
 
     // Initialize answers array with null values
-    const initialAnswers: (string | null)[] = new Array(totalQuestions).fill(null);
+    const initialAnswers: (AnswerOption | null)[] = new Array(totalQuestions).fill(null);
 
     const attempt: Omit<ExamAttempt, '_id'> & { _id?: ObjectId } = {
       examId: new ObjectId(data.examId),
@@ -188,7 +191,7 @@ export async function POST(request: NextRequest) {
       ...(data.roomId && { roomId: new ObjectId(data.roomId) }),
     };
 
-    const result = await db.collection<ExamAttempt>('examAttempts').insertOne(attempt);
+    const result = await db.collection('examAttempts').insertOne(attempt);
 
     return NextResponse.json(
       {

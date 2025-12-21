@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { Exam, CreateExamData } from '@/models/Exam';
+import { Exam } from '@/models/Exam';
+// import { CreateExamData } from '@/models/Exam';
 import { ObjectId } from 'mongodb';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -38,6 +39,7 @@ async function verifyTeacher() {
 
     return null;
   } catch (error) {
+    console.log(`Auth error: ${String(error).substring(0, 20)}...`);
     return null;
   }
 }
@@ -68,6 +70,7 @@ async function verifyStudent() {
 
     return null;
   } catch (error) {
+    console.log(`Auth error: ${String(error).substring(0, 20)}...`);
     return null;
   }
 }
@@ -96,7 +99,7 @@ export async function GET(request: NextRequest) {
 
       // Get exams that are accessible to student's classes
       const exams = await db
-        .collection<Exam>('exams')
+        .collection('exams')
         .find({
           classes: { $in: classIds },
         })
@@ -107,7 +110,7 @@ export async function GET(request: NextRequest) {
       const serialized = exams.map((exam) => ({
         ...exam,
         _id: exam._id?.toString(),
-        classes: exam.classes?.map((id) => (typeof id === 'string' ? id : id.toString())),
+        classes: exam.classes?.map((id: ObjectId | string) => (typeof id === 'string' ? id : id.toString())),
         createdBy: exam.createdBy?.toString(),
       }));
 
@@ -120,7 +123,7 @@ export async function GET(request: NextRequest) {
       }
 
       const exams = await db
-        .collection<Exam>('exams')
+        .collection('exams')
         .find({})
         .sort({ createdAt: -1 })
         .toArray();
@@ -129,7 +132,7 @@ export async function GET(request: NextRequest) {
       const serialized = exams.map((exam) => ({
         ...exam,
         _id: exam._id?.toString(),
-        classes: exam.classes?.map((id) => (typeof id === 'string' ? id : id.toString())),
+        classes: exam.classes?.map((id: ObjectId | string) => (typeof id === 'string' ? id : id.toString())),
         createdBy: exam.createdBy?.toString(),
       }));
 
@@ -219,7 +222,7 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    const result = await db.collection<Exam>('exams').insertOne(exam);
+    const result = await db.collection('exams').insertOne(exam);
 
     return NextResponse.json({
       ...exam,

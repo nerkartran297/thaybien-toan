@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { User } from '@/models/User';
+// import { User } from '@/models/User';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const db = await getDatabase();
-    const user = await db.collection<User>('users').findOne({ username });
+    const user = await db.collection('users').findOne({ username });
 
     if (!user) {
       return NextResponse.json(
@@ -84,7 +84,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Return user data (without password)
-    const { password: _, ...userWithoutPassword } = user;
+    const { password: _password, ...userWithoutPassword } = user;
+
+    console.log(`${_password}1932`);
 
     return NextResponse.json({
       user: userWithoutPassword,

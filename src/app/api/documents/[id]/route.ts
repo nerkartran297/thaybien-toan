@@ -37,6 +37,7 @@ async function verifyTeacher() {
 
     return null;
   } catch (error) {
+    console.log(`Auth error: ${String(error).substring(0, 20)}...`);
     return null;
   }
 }
@@ -51,8 +52,8 @@ export async function GET(
     const db = await getDatabase();
     
     const document = await db
-      .collection<Document>('documents')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('documents')
+      .findOne({ _id: new ObjectId(id) }) as Document | null;
 
     if (!document) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -90,24 +91,26 @@ export async function PUT(
     const db = await getDatabase();
 
     const existingDoc = await db
-      .collection<Document>('documents')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('documents')
+      .findOne({ _id: new ObjectId(id) }) as Document | null;
 
     if (!existingDoc) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
+    // Convert classes from string[] to ObjectId[] if present
+    const { classes, ...restData } = data;
     const updateData: Partial<Document> = {
-      ...data,
+      ...restData,
       updatedAt: new Date(),
     };
 
-    if (data.classes) {
-      updateData.classes = data.classes.map((id) => new ObjectId(id));
+    if (classes) {
+      updateData.classes = classes.map((id) => new ObjectId(id));
     }
 
     const result = await db
-      .collection<Document>('documents')
+      .collection('documents')
       .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
     if (result.matchedCount === 0) {
@@ -115,8 +118,8 @@ export async function PUT(
     }
 
     const updated = await db
-      .collection<Document>('documents')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('documents')
+      .findOne({ _id: new ObjectId(id) }) as Document | null;
 
     return NextResponse.json({
       ...updated,
@@ -148,8 +151,8 @@ export async function DELETE(
     const db = await getDatabase();
 
     const document = await db
-      .collection<Document>('documents')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('documents')
+      .findOne({ _id: new ObjectId(id) }) as Document | null;
 
     if (!document) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -166,7 +169,7 @@ export async function DELETE(
 
     // Delete from database
     const result = await db
-      .collection<Document>('documents')
+      .collection('documents')
       .deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { StudentEnrollment, CreateEnrollmentData } from '@/models/StudentEnrollment';
+import { StudentEnrollment } from '@/models/StudentEnrollment';
+// import { CreateEnrollmentData } from '@/models/StudentEnrollment';
 import { ObjectId } from 'mongodb';
 
 // Helper function to calculate end date
@@ -46,8 +47,8 @@ export async function POST(
   try {
     const db = await getDatabase();
     const existingEnrollment = await db
-      .collection<StudentEnrollment>('enrollments')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('enrollments')
+      .findOne({ _id: new ObjectId(id) }) as StudentEnrollment | null;
 
     if (!existingEnrollment) {
       return NextResponse.json({ error: 'Enrollment not found' }, { status: 404 });
@@ -55,7 +56,7 @@ export async function POST(
 
     // Check if student already has an active enrollment (shouldn't happen, but check anyway)
     const activeEnrollment = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .findOne({
         studentId: existingEnrollment.studentId,
         status: { $in: ['pending', 'active'] },
@@ -71,7 +72,7 @@ export async function POST(
 
     // Mark current enrollment as completed
     await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .updateOne(
         { _id: new ObjectId(id) },
         {
@@ -112,7 +113,7 @@ export async function POST(
     };
 
     const result = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .insertOne(newEnrollment);
 
     return NextResponse.json(

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { StudentEnrollment } from '@/models/StudentEnrollment';
-import { Class } from '@/models/Class';
+// import { StudentEnrollment } from '@/models/StudentEnrollment';
+// import { Class } from '@/models/Class';
 import { ObjectId } from 'mongodb';
 
 // GET /api/makeups/available - Get available classes for makeup
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Get enrollment to find courseId
     const enrollment = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .findOne({ _id: new ObjectId(enrollmentId) });
 
     if (!enrollment) {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     // Get all active classes for the same course that have available slots
     const now = new Date();
     const availableClasses = await db
-      .collection<Class>('classes')
+      .collection('classes')
       .find({
         courseId: enrollment.courseId,
         isActive: true,

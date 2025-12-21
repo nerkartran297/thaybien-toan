@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { Document, CreateDocumentData } from '@/models/Document';
+import { Document } from '@/models/Document';
+// import { CreateDocumentData } from '@/models/Document';
 import { ObjectId } from 'mongodb';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -38,6 +39,7 @@ async function verifyTeacher() {
 
     return null;
   } catch (error) {
+    console.log(`Auth error: ${String(error).substring(0, 20)}...`);
     return null;
   }
 }
@@ -68,6 +70,7 @@ async function verifyStudent() {
 
     return null;
   } catch (error) {
+    console.log(`Auth error: ${String(error).substring(0, 20)}...`);
     return null;
   }
 }
@@ -96,7 +99,7 @@ export async function GET(request: NextRequest) {
 
       // Get documents that are accessible to student's classes
       const documents = await db
-        .collection<Document>('documents')
+        .collection('documents')
         .find({
           classes: { $in: classIds },
         })
@@ -107,7 +110,7 @@ export async function GET(request: NextRequest) {
       const serialized = documents.map((doc) => ({
         ...doc,
         _id: doc._id?.toString(),
-        classes: doc.classes?.map((id) => (typeof id === 'string' ? id : id.toString())),
+        classes: doc.classes?.map((id: ObjectId | string) => (typeof id === 'string' ? id : id.toString())),
         uploadedBy: doc.uploadedBy?.toString(),
       }));
 
@@ -120,7 +123,7 @@ export async function GET(request: NextRequest) {
       }
 
       const documents = await db
-        .collection<Document>('documents')
+        .collection('documents')
         .find({})
         .sort({ createdAt: -1 })
         .toArray();
@@ -129,7 +132,7 @@ export async function GET(request: NextRequest) {
       const serialized = documents.map((doc) => ({
         ...doc,
         _id: doc._id?.toString(),
-        classes: doc.classes?.map((id) => (typeof id === 'string' ? id : id.toString())),
+        classes: doc.classes?.map((id: ObjectId | string) => (typeof id === 'string' ? id : id.toString())),
         uploadedBy: doc.uploadedBy?.toString(),
       }));
 
@@ -208,7 +211,7 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    const result = await db.collection<Document>('documents').insertOne(document);
+    const result = await db.collection('documents').insertOne(document);
 
     return NextResponse.json({
       ...document,

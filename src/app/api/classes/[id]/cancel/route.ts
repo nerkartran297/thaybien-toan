@@ -27,8 +27,8 @@ export async function POST(
     
     // Check if class exists
     const existingClass = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     if (!existingClass) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -60,7 +60,7 @@ export async function POST(
 
     // Update the class
     const result = await db
-      .collection<Class>('classes')
+      .collection('classes')
       .updateOne(
         { _id: new ObjectId(id) },
         {
@@ -81,27 +81,29 @@ export async function POST(
     // 3. Delete/refund makeup requests of students who were supposed to attend this class as makeup
 
     const sessionDate = new Date(cancelDate);
-    // Set time to match class start time
-    const classStartTime = new Date(existingClass.startTime);
-    sessionDate.setHours(
-      classStartTime.getHours(),
-      classStartTime.getMinutes(),
-      0,
-      0
-    );
+    // Set time to match class start time from first session
+    if (existingClass.sessions && existingClass.sessions.length > 0) {
+      const firstSession = existingClass.sessions[0];
+      const [startHour, startMin] = firstSession.startTime.split(':').map(Number);
+      sessionDate.setHours(startHour, startMin, 0, 0);
+    } else {
+      // Default to 8:00 AM if no sessions
+      sessionDate.setHours(8, 0, 0, 0);
+    }
 
     // Get all enrollments for students enrolled in this class
-    const enrolledStudentIds = existingClass.enrolledStudents.map(id => new ObjectId(id));
+    const enrolledStudentIds = existingClass.enrolledStudents.map(id => 
+      new ObjectId(typeof id === 'string' ? id : id.toString())
+    );
     
-    // Find enrollments for these students that match this class's course
+    // Find enrollments for these students (each student should have one enrollment)
     const enrollments = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .find({
         studentId: { $in: enrolledStudentIds },
-        courseId: existingClass.courseId,
         status: { $in: ['active', 'pending'] },
       })
-      .toArray();
+      .toArray() as StudentEnrollment[];
 
     const now = new Date();
 
@@ -114,7 +116,7 @@ export async function POST(
 
       // Check if student already has an absence request (đã xin vắng)
       const existingAbsence = await db
-        .collection<AbsenceRequest>('absenceRequests')
+        .collection('absenceRequests')
         .findOne({
           studentId: enrollment.studentId,
           classId: existingClass._id,
@@ -124,7 +126,7 @@ export async function POST(
       // 1. Create attendance record with status "excused" (vắng có phép) for all students
       // Check if attendance already exists
       const existingAttendance = await db
-        .collection<Attendance>('attendance')
+        .collection('attendance')
         .findOne({
           studentId: enrollment.studentId,
           classId: existingClass._id,
@@ -169,7 +171,7 @@ export async function POST(
           updatedAt: new Date(),
         };
 
-        await db.collection<Attendance>('attendance').insertOne(attendance);
+        await db.collection('attendance').insertOne(attendance);
       }
 
       // 2. Create absence request for tracking (optional, but keep for history)
@@ -187,7 +189,7 @@ export async function POST(
           updatedAt: new Date(),
         };
 
-        await db.collection<AbsenceRequest>('absenceRequests').insertOne(absenceRequest);
+        await db.collection('absenceRequests').insertOne(absenceRequest);
       }
 
       // 3. Create makeup request ONLY for students who did NOT already request absence
@@ -217,7 +219,7 @@ export async function POST(
         originalSessionDateEnd.setHours(23, 59, 59, 999);
         
         const existingMakeup = await db
-          .collection<MakeupRequest>('makeupRequests')
+          .collection('makeupRequests')
           .findOne({
             studentId: enrollment.studentId,
             originalClassId: existingClass._id,
@@ -225,7 +227,7 @@ export async function POST(
           });
 
         if (!existingMakeup) {
-          await db.collection<MakeupRequest>('makeupRequests').insertOne(makeupRequest);
+          await db.collection('makeupRequests').insertOne(makeupRequest);
         }
       }
     }
@@ -238,7 +240,7 @@ export async function POST(
     cancelDateEnd.setHours(23, 59, 59, 999);
     
     const makeupRequestsToRefund = await db
-      .collection<MakeupRequest>('makeupRequests')
+      .collection('makeupRequests')
       .find({
         newClassId: existingClass._id,
         newSessionDate: { $gte: cancelDateStart, $lt: cancelDateEnd },
@@ -248,17 +250,18 @@ export async function POST(
 
     // Delete these makeup requests (refund)
     if (makeupRequestsToRefund.length > 0) {
-      await db
-        .collection<MakeupRequest>('makeupRequests')
-        .deleteMany({
-          _id: { $in: makeupRequestsToRefund.map(m => m._id!) },
-        });
+      // Delete each makeup request individually
+      for (const makeupRequest of makeupRequestsToRefund) {
+        if (makeupRequest._id) {
+          await db.collection('makeupRequests').deleteOne({ _id: makeupRequest._id });
+        }
+      }
     }
 
     // Fetch updated class
     const updatedClass = await db
-      .collection<Class>('classes')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('classes')
+      .findOne({ _id: new ObjectId(id) }) as Class | null;
 
     return NextResponse.json(updatedClass);
   } catch (error) {

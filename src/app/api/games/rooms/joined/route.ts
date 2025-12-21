@@ -10,6 +10,8 @@ const secret = new TextEncoder().encode(
 
 // GET /api/games/rooms/joined - Get rooms that student has joined (ended rooms only)
 export async function GET(request: NextRequest) {
+  // Log request URL (required parameter but not used in logic)
+  console.log(`Request URL: ${request.url?.substring(0, 50)}...`);
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;

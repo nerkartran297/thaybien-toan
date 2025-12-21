@@ -90,115 +90,115 @@ export default function TeacherOverviewPage() {
   const daysOfWeek = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
   // Get attendance info for a student on a specific date
-  const getAttendanceInfo = (student: User, date: Date) => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
+  // const getAttendanceInfo = (student: User, date: Date) => {
+  //   const now = new Date();
+  //   now.setHours(0, 0, 0, 0);
+  //   const checkDate = new Date(date);
+  //   checkDate.setHours(0, 0, 0, 0);
 
-    // Get all attendance records for this student, sorted by date
-    // Count ALL attendances (both regular and makeup) in chronological order
-    const studentAttendances = attendanceRecords
-      .filter((att) => att.studentId.toString() === student._id?.toString())
-      .filter((att) => {
-        const attDate = new Date(att.sessionDate);
-        attDate.setHours(0, 0, 0, 0);
-        return attDate <= now; // Only count past attendances
-      })
-      .sort((a, b) => {
-        const dateA = new Date(a.sessionDate).getTime();
-        const dateB = new Date(b.sessionDate).getTime();
-        return dateA - dateB;
-      });
+  //   // Get all attendance records for this student, sorted by date
+  //   // Count ALL attendances (both regular and makeup) in chronological order
+  //   const studentAttendances = attendanceRecords
+  //     .filter((att) => att.studentId.toString() === student._id?.toString())
+  //     .filter((att) => {
+  //       const attDate = new Date(att.sessionDate);
+  //       attDate.setHours(0, 0, 0, 0);
+  //       return attDate <= now; // Only count past attendances
+  //     })
+  //     .sort((a, b) => {
+  //       const dateA = new Date(a.sessionDate).getTime();
+  //       const dateB = new Date(b.sessionDate).getTime();
+  //       return dateA - dateB;
+  //     });
 
-    // Find attendance for this specific date
-    const attendanceForDate = studentAttendances.find((att) => {
-      const attDate = new Date(att.sessionDate);
-      attDate.setHours(0, 0, 0, 0);
-      return attDate.getTime() === checkDate.getTime();
-    });
+  //   // Find attendance for this specific date
+  //   const attendanceForDate = studentAttendances.find((att) => {
+  //     const attDate = new Date(att.sessionDate);
+  //     attDate.setHours(0, 0, 0, 0);
+  //     return attDate.getTime() === checkDate.getTime();
+  //   });
 
-    if (!attendanceForDate) {
-      return null;
-    }
+  //   if (!attendanceForDate) {
+  //     return null;
+  //   }
 
-    // Calculate session number (which session is this?)
-    // Get enrollment to access cycle and totalSessions
-    const studentEnrollment = enrollments.find(
-      (e) => e.studentId.toString() === student._id?.toString()
-    );
+  //   // Calculate session number (which session is this?)
+  //   // Get enrollment to access cycle and totalSessions
+  //   const studentEnrollment = enrollments.find(
+  //     (e) => e.studentId.toString() === student._id?.toString()
+  //   );
 
-    if (!studentEnrollment) {
-      // Fallback: count chronologically if no enrollment
-      const sessionNumber =
-        studentAttendances.findIndex(
-          (att) => att._id?.toString() === attendanceForDate._id?.toString()
-        ) + 1;
-      return {
-        sessionNumber,
-        isRegular: false,
-        isMakeup: false,
-        hasAttendance: true,
-      };
-    }
+  //   if (!studentEnrollment) {
+  //     // Fallback: count chronologically if no enrollment
+  //     const sessionNumber =
+  //       studentAttendances.findIndex(
+  //         (att) => att._id?.toString() === attendanceForDate._id?.toString()
+  //       ) + 1;
+  //     return {
+  //       sessionNumber,
+  //       isRegular: false,
+  //       isMakeup: false,
+  //       hasAttendance: true,
+  //     };
+  //   }
 
-    // Calculate which session number this is based on actual attendance count
-    // Count how many attendances happened before or on this date (chronologically)
-    // This gives us the actual session number (1, 2, 3, 4, 5, 6, 7, 8...)
-    const sessionIndex = studentAttendances.findIndex(
-      (att) => att._id?.toString() === attendanceForDate._id?.toString()
-    );
-    const actualSessionNumber = sessionIndex + 1; // 1-indexed (1, 2, 3, 4, 5, 6, 7, 8...)
+  //   // Calculate which session number this is based on actual attendance count
+  //   // Count how many attendances happened before or on this date (chronologically)
+  //   // This gives us the actual session number (1, 2, 3, 4, 5, 6, 7, 8...)
+  //   const sessionIndex = studentAttendances.findIndex(
+  //     (att) => att._id?.toString() === attendanceForDate._id?.toString()
+  //   );
+  //   const actualSessionNumber = sessionIndex + 1; // 1-indexed (1, 2, 3, 4, 5, 6, 7, 8...)
 
-    // Use calculateSessionNumber with cycle to format the display
-    // If cycle = 4, it will display: 1/4, 2/4, 3/4, 4/4, 1/4, 2/4, 3/4, 4/4...
-    const totalSessions =
-      (studentEnrollment.completedSessions || 0) +
-      (studentEnrollment.remainingSessions || 0) ||
-      studentEnrollment.totalSessions ||
-      12;
+  //   // Use calculateSessionNumber with cycle to format the display
+  //   // If cycle = 4, it will display: 1/4, 2/4, 3/4, 4/4, 1/4, 2/4, 3/4, 4/4...
+  //   const totalSessions =
+  //     (studentEnrollment.completedSessions || 0) +
+  //     (studentEnrollment.remainingSessions || 0) ||
+  //     studentEnrollment.totalSessions ||
+  //     12;
 
-    const sessionNumber = calculateSessionNumber(
-      actualSessionNumber,
-      studentEnrollment.cycle,
-      totalSessions
-    );
+  //   const sessionNumber = calculateSessionNumber(
+  //     actualSessionNumber,
+  //     studentEnrollment.cycle,
+  //     totalSessions
+  //   );
 
-    // Check if this is a regular class or makeup
-    const isMakeup =
-      attendanceForDate.status === "makeup" ||
-      makeupRequests.some((makeup) => {
-        if (makeup.studentId.toString() !== student._id?.toString())
-          return false;
-        if (makeup.status !== "approved") return false;
-        const makeupDate = new Date(makeup.newSessionDate);
-        makeupDate.setHours(0, 0, 0, 0);
-        return makeupDate.getTime() === checkDate.getTime();
-      });
+  //   // Check if this is a regular class or makeup
+  //   const isMakeup =
+  //     attendanceForDate.status === "makeup" ||
+  //     makeupRequests.some((makeup) => {
+  //       if (makeup.studentId.toString() !== student._id?.toString())
+  //         return false;
+  //       if (makeup.status !== "approved") return false;
+  //       const makeupDate = new Date(makeup.newSessionDate);
+  //       makeupDate.setHours(0, 0, 0, 0);
+  //       return makeupDate.getTime() === checkDate.getTime();
+  //     });
 
-    // Check if it's a regular scheduled class
-    // Note: studentEnrollment is already declared above
-    let isRegular = false;
-    if (
-      studentEnrollment &&
-      studentEnrollment.schedule?.sessions &&
-      attendanceForDate.classId
-    ) {
-      const dayOfWeek = date.getDay();
-      isRegular = studentEnrollment.schedule.sessions.some(
-        (session) =>
-          session.dayOfWeek === dayOfWeek &&
-          session.classId?.toString() === attendanceForDate.classId?.toString()
-      );
-    }
+  //   // Check if it's a regular scheduled class
+  //   // Note: studentEnrollment is already declared above
+  //   let isRegular = false;
+  //   if (
+  //     studentEnrollment &&
+  //     studentEnrollment.schedule?.sessions &&
+  //     attendanceForDate.classId
+  //   ) {
+  //     const dayOfWeek = date.getDay();
+  //     isRegular = studentEnrollment.schedule.sessions.some(
+  //       (session) =>
+  //         session.dayOfWeek === dayOfWeek &&
+  //         session.classId?.toString() === attendanceForDate.classId?.toString()
+  //     );
+  //   }
 
-    return {
-      sessionNumber,
-      isRegular: isRegular && !isMakeup,
-      isMakeup,
-      hasAttendance: true,
-    };
-  };
+  //   return {
+  //     sessionNumber,
+  //     isRegular: isRegular && !isMakeup,
+  //     isMakeup,
+  //     hasAttendance: true,
+  //   };
+  // };
 
   // Check if date is a scheduled class day (for highlighting)
   // Only within enrollment period (startDate to endDate)
@@ -269,40 +269,40 @@ export default function TeacherOverviewPage() {
   };
 
   // Get attendance progress for a student (completed / total)
-  const getAttendanceProgress = (
-    student: User
-  ): { completed: number; total: number } => {
-    const studentEnrollment = enrollments.find(
-      (e) => e.studentId.toString() === student._id?.toString()
-    );
+  // const getAttendanceProgress = (
+  //   student: User
+  // ): { completed: number; total: number } => {
+  //   const studentEnrollment = enrollments.find(
+  //     (e) => e.studentId.toString() === student._id?.toString()
+  //   );
 
-    if (!studentEnrollment) {
-      return { completed: 0, total: 0 };
-    }
+  //   if (!studentEnrollment) {
+  //     return { completed: 0, total: 0 };
+  //   }
 
-    // Calculate completed sessions from attendance records
-    // Only count 'present' and 'makeup' status (actual attended sessions)
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const completed = attendanceRecords.filter((att) => {
-      if (att.studentId.toString() !== student._id?.toString()) return false;
-      // Only count 'present' and 'makeup' - actual attended sessions
-      if (att.status !== "present" && att.status !== "makeup") return false;
-      const attDate = new Date(att.sessionDate);
-      attDate.setHours(0, 0, 0, 0);
-      return attDate <= now; // Only count past attendances
-    }).length;
+  //   // Calculate completed sessions from attendance records
+  //   // Only count 'present' and 'makeup' status (actual attended sessions)
+  //   const now = new Date();
+  //   now.setHours(0, 0, 0, 0);
+  //   const completed = attendanceRecords.filter((att) => {
+  //     if (att.studentId.toString() !== student._id?.toString()) return false;
+  //     // Only count 'present' and 'makeup' - actual attended sessions
+  //     if (att.status !== "present" && att.status !== "makeup") return false;
+  //     const attDate = new Date(att.sessionDate);
+  //     attDate.setHours(0, 0, 0, 0);
+  //     return attDate <= now; // Only count past attendances
+  //   }).length;
 
-    // Total sessions = completedSessions + remainingSessions from enrollment
-    const total =
-      (studentEnrollment.completedSessions || 0) +
-      (studentEnrollment.remainingSessions || 0);
+  //   // Total sessions = completedSessions + remainingSessions from enrollment
+  //   const total =
+  //     (studentEnrollment.completedSessions || 0) +
+  //     (studentEnrollment.remainingSessions || 0);
 
-    // Fallback: if total is 0, use default 12 sessions
-    const finalTotal = total > 0 ? total : 12;
+  //   // Fallback: if total is 0, use default 12 sessions
+  //   const finalTotal = total > 0 ? total : 12;
 
-    return { completed, total: finalTotal };
-  };
+  //   return { completed, total: finalTotal };
+  // };
 
   const navigateWeek = (direction: "prev" | "next") => {
     const newDate = new Date(currentDate);

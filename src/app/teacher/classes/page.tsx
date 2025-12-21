@@ -29,12 +29,14 @@ export default function ClassesManagementPage() {
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [showAddStudentsModal, setShowAddStudentsModal] = useState(false);
-  const [students, setStudents] = useState<StudentWithProfile[]>([]);
+  const [students] = useState<StudentWithProfile[]>([]);
+  // const [setStudents] = useState<StudentWithProfile[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
     new Set()
   );
   const [searchTerm, setSearchTerm] = useState("");
-  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingStudents] = useState(false);
+  // const [setLoadingStudents] = useState(false);
   const [addingStudents, setAddingStudents] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);

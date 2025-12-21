@@ -54,7 +54,7 @@ export default function StudentDetailModal({
   const [editValue, setEditValue] = useState("");
   const [showCreateEnrollment, setShowCreateEnrollment] = useState(false);
   const [showBulkAttendanceModal, setShowBulkAttendanceModal] = useState(false);
-  const [bulkAttendanceDates, setBulkAttendanceDates] = useState<string[]>([]);
+  const [, setBulkAttendanceDates] = useState<string[]>([]);
   const [bulkAttendanceText, setBulkAttendanceText] = useState<string>("");
   const [bonusSessions, setBonusSessions] = useState<string>("");
   const [bonusWeeks, setBonusWeeks] = useState<string>("");
@@ -332,7 +332,7 @@ export default function StudentDetailModal({
       !cls.enrolledStudents.some(
         (id) => id.toString() === student._id?.toString()
       ) &&
-      cls.enrolledStudents.length < cls.maxStudents
+      true // maxStudents no longer exists
   );
 
   if (loading) {
@@ -477,7 +477,7 @@ export default function StudentDetailModal({
                 >
                   Email
                 </label>
-                <span style={{ color: colors.brown }}>{student.email}</span>
+                <span style={{ color: colors.brown }}>{student.email || 'N/A'}</span>
               </div>
 
               <div>
@@ -1549,12 +1549,7 @@ export default function StudentDetailModal({
                           <option value="">-- Chọn lớp --</option>
                           {classes
                             .filter((cls) => {
-                              // Only show classes for the same course
-                              if (
-                                cls.courseId.toString() !==
-                                selectedEnrollmentForFrequency.courseId.toString()
-                              )
-                                return false;
+                              // courseId no longer exists on Class, so skip that filter
                               // Don't show classes student is already in
                               const currentClassIds =
                                 selectedEnrollmentForFrequency.schedule?.sessions
@@ -1565,7 +1560,7 @@ export default function StudentDetailModal({
                               // Only show active classes with available slots
                               if (!cls.isActive) return false;
                               if (
-                                cls.enrolledStudents.length >= cls.maxStudents
+                                false // maxStudents no longer exists
                               )
                                 return false;
                               return true;
@@ -1576,16 +1571,17 @@ export default function StudentDetailModal({
                                 value={cls._id?.toString()}
                               >
                                 {cls.name} ({cls.enrolledStudents.length}/
-                                {cls.maxStudents} học viên)
+                                học viên)
                               </option>
                             ))}
                         </select>
                         {classes.filter((cls) => {
-                          if (
-                            cls.courseId.toString() !==
-                            selectedEnrollmentForFrequency.courseId.toString()
-                          )
-                            return false;
+                          // courseId no longer exists on Class, so skip that filter
+                          // if (
+                          //   cls.courseId.toString() !==
+                          //   selectedEnrollmentForFrequency.courseId.toString()
+                          // )
+                          //   return false;
                           const currentClassIds =
                             selectedEnrollmentForFrequency.schedule?.sessions
                               .map((s) => s.classId?.toString())
@@ -1593,8 +1589,9 @@ export default function StudentDetailModal({
                           if (currentClassIds.includes(cls._id?.toString()))
                             return false;
                           if (!cls.isActive) return false;
-                          if (cls.enrolledStudents.length >= cls.maxStudents)
-                            return false;
+                          // maxStudents no longer exists, so skip this check
+                          // if (cls.enrolledStudents.length >= cls.maxStudents)
+                          //   return false;
                           return true;
                         }).length === 0 && (
                           <p
@@ -1643,7 +1640,7 @@ export default function StudentDetailModal({
                                   value={session.classId?.toString()}
                                 >
                                   {cls.name} ({cls.enrolledStudents.length}/
-                                  {cls.maxStudents} học viên)
+                                  học viên)
                                 </option>
                               );
                             })
@@ -1693,24 +1690,16 @@ export default function StudentDetailModal({
                             return;
                           }
 
-                          const timeSlot =
-                            newClass.startTime && newClass.endTime
-                              ? `${new Date(
-                                  newClass.startTime
-                                ).toLocaleTimeString("vi-VN", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}-${new Date(
-                                  newClass.endTime
-                                ).toLocaleTimeString("vi-VN", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}`
+                          const firstSession = newClass.sessions && newClass.sessions.length > 0 
+                            ? newClass.sessions[0] 
+                            : null;
+                          const timeSlot = firstSession
+                              ? `${firstSession.startTime}-${firstSession.endTime}`
                               : "";
 
                           newSessions.push({
                             dayOfWeek:
-                              newClass.dayOfWeek ?? new Date().getDay(),
+                              firstSession?.dayOfWeek ?? new Date().getDay(),
                             timeSlot,
                             classId: newClass._id?.toString() as unknown as ObjectId,
                           });
@@ -2022,9 +2011,8 @@ export default function StudentDetailModal({
                 ) : (
                   <div className="space-y-2">
                     {studentClasses.map((cls) => {
-                      const course = courses.find(
-                        (c) => c._id?.toString() === cls.courseId.toString()
-                      );
+                      // courseId no longer exists on Class, so we can't find the course
+                      // const course = null;
                       return (
                         <div
                           key={cls._id?.toString()}
@@ -2042,8 +2030,7 @@ export default function StudentDetailModal({
                               className="text-sm"
                               style={{ color: colors.brown }}
                             >
-                              {course?.name} • {cls.enrolledStudents.length}/
-                              {cls.maxStudents} học viên
+                              {cls.name} • {cls.enrolledStudents.length} học viên
                             </div>
                           </div>
                           <button
@@ -2086,9 +2073,8 @@ export default function StudentDetailModal({
                 ) : (
                   <div className="space-y-2">
                     {availableClasses.map((cls) => {
-                      const course = courses.find(
-                        (c) => c._id?.toString() === cls.courseId.toString()
-                      );
+                      // courseId no longer exists on Class, so we can't find the course
+                      // const course = null;
                       return (
                         <div
                           key={cls._id?.toString()}
@@ -2106,8 +2092,7 @@ export default function StudentDetailModal({
                               className="text-sm"
                               style={{ color: colors.brown }}
                             >
-                              {course?.name} • {cls.enrolledStudents.length}/
-                              {cls.maxStudents} học viên
+                              {cls.name} • {cls.enrolledStudents.length} học viên
                             </div>
                           </div>
                           <button

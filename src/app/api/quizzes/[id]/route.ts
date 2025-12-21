@@ -56,9 +56,9 @@ export async function GET(
     }
 
     const db = await getDatabase();
-    const quiz = await db.collection<Quiz>('quizzes').findOne({
+    const quiz = await db.collection('quizzes').findOne({
       _id: quizObjectId,
-    });
+    }) as Quiz | null;
 
     if (!quiz) {
       return NextResponse.json(
@@ -149,7 +149,7 @@ export async function PUT(
     if (data.description !== undefined) updateData.description = data.description;
     if (data.questions) updateData.questions = data.questions;
 
-    const result = await db.collection<Quiz>('quizzes').updateOne(
+    const result = await db.collection('quizzes').updateOne(
       { _id: quizObjectId },
       { $set: updateData }
     );
@@ -161,9 +161,9 @@ export async function PUT(
       );
     }
 
-    const updatedQuiz = await db.collection<Quiz>('quizzes').findOne({
+    const updatedQuiz = await db.collection('quizzes').findOne({
       _id: quizObjectId,
-    });
+    }) as Quiz | null;
 
     return NextResponse.json({
       ...updatedQuiz,
@@ -237,7 +237,7 @@ export async function DELETE(
       );
     }
 
-    const result = await db.collection<Quiz>('quizzes').deleteOne({
+    const result = await db.collection('quizzes').deleteOne({
       _id: quizObjectId,
     });
 

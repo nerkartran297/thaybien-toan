@@ -68,9 +68,9 @@ export async function PUT(
     }
 
     // Get session
-    const session = await db.collection<QuizSession>('quizSessions').findOne({
+    const session = await db.collection('quizSessions').findOne({
       roomId: roomObjectId,
-    });
+    }) as QuizSession | null;
 
     if (!session) {
       return NextResponse.json(
@@ -98,13 +98,13 @@ export async function PUT(
       );
     }
 
-    const quizWithQuestions = quiz as { questions: unknown[] };
+    const quizWithQuestions = quiz as unknown as { questions: unknown[] };
     const totalQuestions = quizWithQuestions.questions.length;
     const nextQuestionIndex = session.currentQuestionIndex + 1;
 
     if (nextQuestionIndex >= totalQuestions) {
       // Quiz completed - also end the room
-      await db.collection<QuizSession>('quizSessions').updateOne(
+      await db.collection('quizSessions').updateOne(
         { _id: session._id },
         {
           $set: {
@@ -128,7 +128,7 @@ export async function PUT(
       );
     } else {
       // Move to next question (but don't start it yet)
-      await db.collection<QuizSession>('quizSessions').updateOne(
+      await db.collection('quizSessions').updateOne(
         { _id: session._id },
         {
           $set: {
@@ -141,9 +141,9 @@ export async function PUT(
       );
     }
 
-    const updatedSession = await db.collection<QuizSession>('quizSessions').findOne({
+    const updatedSession = await db.collection('quizSessions').findOne({
       _id: session._id,
-    });
+    }) as QuizSession | null;
 
     return NextResponse.json({
       ...updatedSession,

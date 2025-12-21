@@ -46,8 +46,8 @@ export async function GET(
     const { id } = await params;
     const db = await getDatabase();
     const enrollment = await db
-      .collection<StudentEnrollment>('enrollments')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('enrollments')
+      .findOne({ _id: new ObjectId(id) }) as StudentEnrollment | null;
 
     if (!enrollment) {
       return NextResponse.json({ error: 'Enrollment not found' }, { status: 404 });
@@ -75,8 +75,8 @@ export async function PUT(
 
     // Check if enrollment exists
     const existingEnrollment = await db
-      .collection<StudentEnrollment>('enrollments')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('enrollments')
+      .findOne({ _id: new ObjectId(id) }) as StudentEnrollment | null;
 
     if (!existingEnrollment) {
       return NextResponse.json({ error: 'Enrollment not found' }, { status: 404 });
@@ -109,7 +109,7 @@ export async function PUT(
       updateData.totalSessions = calculateTotalSessions(frequency, paymentMode, customWeeks);
       // If totalSessions changed, adjust remainingSessions to maintain consistency
       if (updateData.totalSessions !== undefined && existingEnrollment.totalSessions !== undefined) {
-        const oldTotal = existingEnrollment.totalSessions;
+        // const oldTotal = existingEnrollment.totalSessions;
         const newTotal = updateData.totalSessions;
         const completed = existingEnrollment.completedSessions;
         // Adjust remainingSessions based on new total
@@ -126,7 +126,7 @@ export async function PUT(
     }
 
     const result = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
     if (result.matchedCount === 0) {
@@ -135,8 +135,8 @@ export async function PUT(
 
     // Fetch updated enrollment
     const updatedEnrollment = await db
-      .collection<StudentEnrollment>('enrollments')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('enrollments')
+      .findOne({ _id: new ObjectId(id) }) as StudentEnrollment | null;
 
     return NextResponse.json(updatedEnrollment);
   } catch (error) {
@@ -166,8 +166,8 @@ export async function PATCH(
 
     const db = await getDatabase();
     const enrollment = await db
-      .collection<StudentEnrollment>('enrollments')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('enrollments')
+      .findOne({ _id: new ObjectId(id) }) as StudentEnrollment | null;
 
     if (!enrollment) {
       return NextResponse.json({ error: 'Enrollment not found' }, { status: 404 });
@@ -193,7 +193,7 @@ export async function PATCH(
 
     // Update enrollment
     const result = await db
-      .collection<StudentEnrollment>('enrollments')
+      .collection('enrollments')
       .updateOne(
         { _id: new ObjectId(id) },
         {
@@ -290,8 +290,8 @@ export async function PATCH(
     }
 
     const updatedEnrollment = await db
-      .collection<StudentEnrollment>('enrollments')
-      .findOne({ _id: new ObjectId(id) });
+      .collection('enrollments')
+      .findOne({ _id: new ObjectId(id) }) as StudentEnrollment | null;
 
     return NextResponse.json(updatedEnrollment);
   } catch (error) {

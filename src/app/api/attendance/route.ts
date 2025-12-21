@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     }
 
     const attendance = await db
-      .collection<Attendance>('attendance')
+      .collection('attendance')
       .find(query)
       .toArray();
 
@@ -113,9 +113,9 @@ export async function POST(request: NextRequest) {
     sessionDateEnd.setHours(23, 59, 59, 999);
 
     const existingAttendance = await db
-      .collection<Attendance>('attendance')
+      .collection('attendance')
       .findOne({
-        studentId: new ObjectId(data.studentId),
+        studentId: new ObjectId(typeof data.studentId === 'string' ? data.studentId : data.studentId.toString()),
         sessionDate: {
           $gte: sessionDateStart,
           $lte: sessionDateEnd,
@@ -129,27 +129,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const attendance: Attendance = {
-      studentId: new ObjectId(data.studentId),
-      enrollmentId: new ObjectId(data.enrollmentId),
-      classId: data.classId ? new ObjectId(data.classId) : undefined,
+      const attendance: Attendance = {
+        studentId: new ObjectId(typeof data.studentId === 'string' ? data.studentId : data.studentId.toString()),
+        enrollmentId: new ObjectId(typeof data.enrollmentId === 'string' ? data.enrollmentId : data.enrollmentId.toString()),
+        classId: data.classId ? new ObjectId(typeof data.classId === 'string' ? data.classId : data.classId.toString()) : undefined,
       sessionDate: sessionDate,
       status: data.status,
       notes: data.notes,
-      markedBy: new ObjectId(data.markedBy),
+      markedBy: new ObjectId(typeof data.markedBy === 'string' ? data.markedBy : data.markedBy.toString()),
       markedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
     const result = await db
-      .collection<Attendance>('attendance')
+      .collection('attendance')
       .insertOne(attendance);
 
     // Update enrollment completed sessions if present
     if (data.status === 'present' || data.status === 'makeup') {
       await db.collection('enrollments').updateOne(
-        { _id: new ObjectId(data.enrollmentId) },
+        { _id: new ObjectId(typeof data.enrollmentId === 'string' ? data.enrollmentId : data.enrollmentId.toString()) },
         {
           $inc: { completedSessions: 1, remainingSessions: -1 },
         }
@@ -168,4 +168,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 
