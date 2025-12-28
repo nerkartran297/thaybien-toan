@@ -61,7 +61,7 @@ export default function WeekCalendar({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<
-    "cancel" | "edit" | "absence" | "makeup" | "create" | "attendance"
+    "cancel" | "absence" | "makeup" | "create" | "attendance"
   >("cancel");
   const [hoveredClassBlock, setHoveredClassBlock] = useState<{
     classId: string;
@@ -353,7 +353,7 @@ export default function WeekCalendar({
   const handleClassClick = (
     cls: Class,
     date: Date,
-    type: "cancel" | "edit" | "absence" | "makeup" | "attendance"
+    type: "cancel" | "absence" | "makeup" | "attendance"
   ) => {
     setSelectedClass(cls);
     setSelectedDate(date);
@@ -793,19 +793,8 @@ export default function WeekCalendar({
                               }
                             }
                             if (role === "teacher") {
-                              // Allow attendance for today and past dates
-                              const today = new Date();
-                              today.setHours(0, 0, 0, 0);
-                              const classDate = new Date(date);
-                              classDate.setHours(0, 0, 0, 0);
-                              const isTodayOrPast =
-                                classDate.getTime() <= today.getTime();
-
-                              if (isTodayOrPast || isCancelledOnDate) {
-                                handleClassClick(cls, date, "attendance");
-                              } else {
-                                handleClassClick(cls, date, "edit");
-                              }
+                              // Always open attendance modal when clicking on class
+                              handleClassClick(cls, date, "attendance");
                             }
                           }}
                           onMouseEnter={() => {
@@ -1317,18 +1306,8 @@ export default function WeekCalendar({
                               }
                             }
                             if (role === "teacher") {
-                              const today = new Date();
-                              today.setHours(0, 0, 0, 0);
-                              const classDate = new Date(date);
-                              classDate.setHours(0, 0, 0, 0);
-                              const isTodayOrPast =
-                                classDate.getTime() <= today.getTime();
-
-                              if (isTodayOrPast || isCancelledOnDate) {
-                                handleClassClick(cls, date, "attendance");
-                              } else {
-                                handleClassClick(cls, date, "edit");
-                              }
+                              // Always open attendance modal when clicking on class
+                              handleClassClick(cls, date, "attendance");
                             }
                           }}
                           onMouseEnter={() => {
@@ -1566,7 +1545,7 @@ function StatusPill({
 
 // Modal component for class actions
 interface ClassActionModalProps {
-  type: "cancel" | "edit" | "absence" | "makeup" | "create" | "attendance";
+  type: "cancel" | "absence" | "makeup" | "create" | "attendance";
   classData: Class;
   date: Date;
   onClose: () => void;
@@ -1649,7 +1628,7 @@ function ClassActionModal({
   // Fetch students when modal opens for teacher edit/attendance view
   useEffect(() => {
     if (
-      (type === "edit" || type === "attendance") &&
+      type === "attendance" &&
       role === "teacher" &&
       classData.enrolledStudents.length > 0
     ) {
@@ -1682,7 +1661,7 @@ function ClassActionModal({
 
   // Fetch attendance records for this class/date (teacher attendance)
   useEffect(() => {
-    if ((type === "attendance" || type === "edit") && role === "teacher") {
+    if (type === "attendance" && role === "teacher") {
       const fetchAttendanceData = async () => {
         try {
           const checkDate = new Date(date);
@@ -1710,7 +1689,7 @@ function ClassActionModal({
 
   // Fetch makeup students
   useEffect(() => {
-    if ((type === "edit" || type === "attendance") && role === "teacher") {
+    if (type === "attendance" && role === "teacher") {
       const fetchMakeupStudents = async () => {
         try {
           const checkDate = new Date(date);
@@ -1754,7 +1733,7 @@ function ClassActionModal({
   }, [type, role, classData._id, date, makeupRequests]);
 
   const studentsForDate = useMemo(() => {
-    if (role !== "teacher" || (type !== "edit" && type !== "attendance")) return [];
+    if (role !== "teacher" || type !== "attendance") return [];
     const merged = [...students, ...makeupStudents];
     const seen = new Set<string>();
     const out: Array<User & { hasAbsence?: boolean }> = [];
@@ -1831,8 +1810,6 @@ function ClassActionModal({
     if (type === "cancel" && onCancelClass) {
       onCancelClass(classData._id!.toString(), date);
       requestClose();
-    } else if (type === "edit") {
-      requestClose();
     } else if (type === "absence" && onRequestAbsence) {
       onRequestAbsence(classData._id!.toString(), date, reason);
       requestClose();
@@ -1846,8 +1823,6 @@ function ClassActionModal({
     switch (type) {
       case "cancel":
         return "Hủy lớp học";
-      case "edit":
-        return "Thông tin lớp học";
       case "attendance":
         return "Điểm danh";
       case "absence":
@@ -1989,8 +1964,8 @@ function ClassActionModal({
     >
       <div
         className={`bg-white rounded-xl shadow-2xl transition-all transform ${
-          (type === "attendance" || type === "edit") && role === "teacher"
-            ? "max-w-6xl w-full mx-4 h-[90vh] flex flex-col"
+          type === "attendance" && role === "teacher"
+            ? "max-w-7xl w-full mx-4 h-[95vh] flex flex-col"
             : "max-w-lg w-full mx-4 p-6"
         }`}
         style={{ borderColor: colors.brown, borderWidth: "2px" }}
@@ -1998,32 +1973,54 @@ function ClassActionModal({
       >
         {/* Header */}
         <div
-          className={`flex items-center justify-between pb-4 border-b ${
-            (type === "attendance" || type === "edit") && role === "teacher"
-              ? "p-6 flex-shrink-0"
-              : "mb-6"
+          className={`flex items-center justify-between border-b ${
+            type === "attendance" && role === "teacher"
+              ? "pt-1 pb-1 flex-shrink-0"
+              : "mb-1 pb-1"
           }`}
           style={{ borderColor: colors.light }}
         >
           {type === "attendance" && role === "teacher" ? (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={requestClose}
-                className="text-gray-600 hover:text-gray-800 transition-colors text-xl"
-                aria-label="Quay lại"
-              >
-                ←
-              </button>
-              <h3 className="text-xl font-bold" style={{ color: colors.darkBrown }}>
-                Điểm danh ngày{" "}
-                {date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
-              </h3>
-              {savingAttendance && (
-                <div className="ml-3 flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
-                  <Spinner />
-                  <span>Đang lưu...</span>
+            <div className="flex w-full">
+              {/* Vùng trái header - flex-1 với border-r, padding match với body */}
+              <div className="flex-1 flex items-center px-6 border-r" style={{ borderColor: colors.light }}>
+                <div className="flex items-center gap-3 flex-1">
+                  <button
+                    onClick={requestClose}
+                    className="text-gray-600 hover:text-gray-800 transition-colors text-xl"
+                    aria-label="Quay lại"
+                  >
+                    ←
+                  </button>
+                  <h3 className="text-xl font-bold" style={{ color: colors.darkBrown }}>
+                    Điểm danh ngày{" "}
+                    {date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
+                  </h3>
+                  {savingAttendance && (
+                    <div className="ml-3 flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
+                      <Spinner />
+                      <span>Đang lưu...</span>
+                    </div>
+                  )}
                 </div>
-              )}
+                <button
+                  onClick={() => showSuccess("Tính năng tổng kết sẽ cập nhật sau")}
+                  className="ml-auto px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 whitespace-nowrap"
+                  style={{
+                    backgroundColor: "white",
+                    color: colors.darkBrown,
+                    border: `2px solid ${colors.brown}`,
+                  }}
+                >
+                  Tổng kết
+                </button>
+              </div>
+              {/* Vùng phải header - w-[420px] canh với cột ranking, padding match với body */}
+              <div className="w-[420px] flex-shrink-0 flex items-center justify-center p-4">
+                <div className="text-lg font-semibold tracking-wide" style={{ color: colors.darkBrown }}>
+                  Top xếp hạng lớp
+                </div>
+              </div>
             </div>
           ) : (
             <>
@@ -2042,27 +2039,10 @@ function ClassActionModal({
           )}
         </div>
 
-        {(type === "attendance" || type === "edit") && role === "teacher" ? (
+        {type === "attendance" && role === "teacher" ? (
           <div className="flex-1 overflow-hidden flex">
             {/* Left side */}
             <div className="flex-1 overflow-hidden flex flex-col border-r" style={{ borderColor: colors.light }}>
-              {/* Sticky header inside left column */}
-              <div className="sticky top-0 z-10 bg-white px-6 pt-5 pb-4 border-b" style={{ borderColor: colors.light }}>
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => showSuccess("Tính năng tổng kết sẽ cập nhật sau")}
-                    className="px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90"
-                    style={{
-                      backgroundColor: "white",
-                      color: colors.darkBrown,
-                      border: `2px solid ${colors.brown}`,
-                    }}
-                  >
-                    Tổng kết
-                  </button>
-                </div>
-              </div>
-
               {loadingStudents ? (
                 <div className="flex-1 overflow-y-auto px-6 pb-6">
                   <div className="space-y-3 animate-pulse mt-4">
@@ -2228,21 +2208,113 @@ function ClassActionModal({
 
             {/* Right side - Ranking */}
             <div className="w-[420px] flex-shrink-0 p-4 overflow-y-auto" style={{ backgroundColor: "white" }}>
-              <div className="mb-2 mt-[-10px]  text-center">
-                <div className="text-lg font-semibold tracking-wide" style={{ color: colors.darkBrown }}>
-                  Top xếp hạng lớp
-                </div>
-              </div>
-
               {classRanking.length === 0 ? (
                 <div className="text-center py-10 rounded-2xl border-2" style={{ borderColor: colors.light, color: colors.brown }}>
                   <div className="text-sm">Chưa có dữ liệu xếp hạng</div>
                 </div>
               ) : (
                 <>
+                  {/* Avatar Ranking */}
+                  <div className="mb-6">
+                    {(() => {
+                      const top5 = classRanking.slice(0, 5);
+                      
+                      // Size cho từng rank
+                      const sizeByRank: Record<number, number> = {
+                        1: 100, // To nhất
+                        2: 75,  // Nhỏ hơn 1, to hơn 4-5
+                        3: 75,  // Nhỏ hơn 1, to hơn 4-5
+                        4: 60,  // Nhỏ nhất
+                        5: 60,  // Nhỏ nhất
+                      };
+
+                      const renderAvatar = (rankNumber: number, size: number) => {
+                        const student = top5[rankNumber - 1];
+                        const id = student?._id?.toString() || "";
+                        const color = palette[rankNumber - 1] || palette[4];
+
+                        return (
+                          <div
+                            key={rankNumber}
+                            className="relative cursor-pointer transition-transform hover:scale-105"
+                            title={student ? `${student.fullName} (#${rankNumber})` : `#${rankNumber}`}
+                            onMouseEnter={() => {
+                              if (!id) return;
+                              setHighlightStudentId(id);
+                              scrollToStudent(id);
+                            }}
+                            onMouseLeave={() => setHighlightStudentId(null)}
+                          >
+                            {/* Avatar */}
+                            {student?.avatar ? (
+                              <img
+                                src={student.avatar}
+                                alt={student.fullName}
+                                className="rounded-full object-cover"
+                                style={{
+                                  width: size,
+                                  height: size,
+                                  border: `4px solid ${color.border}`,
+                                  boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="rounded-full flex items-center justify-center font-black"
+                                style={{
+                                  width: size,
+                                  height: size,
+                                  border: `4px solid ${color.border}`,
+                                  backgroundColor: color.bg,
+                                  color: colors.darkBrown,
+                                  boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
+                                }}
+                              >
+                                {getInitials(student?.fullName)}
+                              </div>
+                            )}
+                            
+                            {/* Badge số */}
+                            <div
+                              className="absolute left-1/2 -translate-x-1/2 rounded-full flex items-center justify-center font-black text-white"
+                              style={{
+                                bottom: -(size * 0.35) / 2,
+                                width: size * 0.35,
+                                height: size * 0.35,
+                                backgroundColor: color.border,
+                                border: "3px solid white",
+                                boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+                                fontSize: size * 0.25,
+                              }}
+                            >
+                              {rankNumber}
+                            </div>
+                          </div>
+                        );
+                      };
+
+                      return (
+                        <div className="flex flex-col items-center gap-4">
+                          {/* Hàng trên: Top 2, Top 1, Top 3 */}
+                          <div className="flex items-end justify-center gap-6">
+                            {renderAvatar(2, sizeByRank[2])}
+                            {renderAvatar(1, sizeByRank[1])}
+                            {renderAvatar(3, sizeByRank[3])}
+                          </div>
+                          
+                          {/* Hàng dưới: Top 4, Top 5 */}
+                          <div className="flex items-center justify-center gap-8">
+                            {renderAvatar(4, sizeByRank[4])}
+                            {renderAvatar(5, sizeByRank[5])}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
                   {classRanking[0] && (
                     <div
-                      className="rounded-2xl border-2 p-4 mb-4 cursor-pointer transition-all hover:opacity-95"
+                      className="rounded-2xl border-2 p-3 mb-4 cursor-pointer transition-all hover:opacity-95"
                       style={{ backgroundColor: palette[0].bg, borderColor: palette[0].border }}
                       onMouseEnter={() => {
                         const id = classRanking[0]._id?.toString() || "";
@@ -2252,8 +2324,8 @@ function ClassActionModal({
                       }}
                       onMouseLeave={() => setHighlightStudentId(null)}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="text-[56px] leading-none font-black" style={{ color: colors.darkBrown }}>
+                      <div className="flex items-center gap-3">
+                        <div className="text-[44px] leading-none font-black" style={{ color: colors.darkBrown }}>
                           1
                         </div>
                         <div className="flex-1 min-w-0 font-semibold truncate" style={{ color: colors.darkBrown }}>
@@ -2298,70 +2370,6 @@ function ClassActionModal({
                     })}
                   </div>
 
-                  {/* Podium cards */}
-                  <div className="flex items-end justify-between gap-3 mt-6">
-                    {(() => {
-                      const top5 = classRanking.slice(0, 5);
-                      const sizeByRank: Record<number, { w: number; h: number }> = {
-                        1: { w: 92, h: 170 },
-                        2: { w: 78, h: 150 },
-                        3: { w: 78, h: 150 },
-                        4: { w: 70, h: 138 },
-                        5: { w: 70, h: 138 },
-                      };
-
-                      return [4, 2, 1, 3, 5].map((rankNumber) => {
-                        const student = top5[rankNumber - 1];
-                        const id = student?._id?.toString() || "";
-                        const color = palette[rankNumber - 1] || palette[4];
-                        const sz = sizeByRank[rankNumber];
-
-                        return (
-                          <div
-                            key={rankNumber}
-                            className="rounded-[26px] border-2 flex flex-col items-center justify-start pt-5 pb-4 cursor-pointer transition-all hover:opacity-95"
-                            style={{
-                              width: sz.w,
-                              height: sz.h,
-                              backgroundColor: color.bg,
-                              borderColor: color.border,
-                            }}
-                            title={student ? `${student.fullName} (#${rankNumber})` : `#${rankNumber}`}
-                            onMouseEnter={() => {
-                              if (!id) return;
-                              setHighlightStudentId(id);
-                              scrollToStudent(id);
-                            }}
-                            onMouseLeave={() => setHighlightStudentId(null)}
-                          >
-                            {student?.avatar ? (
-                              <img
-                                src={student.avatar}
-                                alt={student.fullName}
-                                className="w-[56px] h-[56px] rounded-full object-cover border-2"
-                                style={{ borderColor: "rgba(0,0,0,0.10)" }}
-                              />
-                            ) : (
-                              <div
-                                className="w-[56px] h-[56px] rounded-full border-2 flex items-center justify-center font-bold"
-                                style={{
-                                  borderColor: "rgba(0,0,0,0.10)",
-                                  backgroundColor: "rgba(255,255,255,0.55)",
-                                  color: colors.darkBrown,
-                                }}
-                              >
-                                {getInitials(student?.fullName)}
-                              </div>
-                            )}
-
-                            <div className="mt-auto text-[44px] leading-none font-black" style={{ color: colors.darkBrown }}>
-                              {rankNumber}
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
                 </>
               )}
             </div>
@@ -2457,7 +2465,7 @@ function ClassActionModal({
         )}
 
         <div className="flex justify-end gap-3 pt-2 border-t flex-shrink-0" style={{ borderColor: colors.light }}>
-          {(type === "attendance" || type === "edit") && role === "teacher" ? (
+          {type === "attendance" && role === "teacher" ? (
             <button
               onClick={requestClose}
               className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
