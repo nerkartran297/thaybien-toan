@@ -10,6 +10,7 @@
     "seed:teacher": "node scripts/seed-default-teacher.js",
     "seed:courses": "node scripts/seed-courses.js",
     "seed:sample": "node scripts/seed-sample-data.js",
+    "seed:scores": "node scripts/seed-competition-scores.js",
     "clear:data": "node scripts/clear-data.js",
     "seed:all": "npm run seed:teacher && npm run seed:courses",
     "seed:full": "npm run seed:teacher && npm run seed:courses && npm run seed:sample",

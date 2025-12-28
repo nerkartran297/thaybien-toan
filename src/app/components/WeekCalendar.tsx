@@ -1526,7 +1526,7 @@ function StatusPill({
       onClick={onClick}
       disabled={disabled}
       className={`w-10 h-10 rounded text-sm font-black transition-all select-none
-        ${disabled ? "cursor-not-allowed" : "hover:opacity-90 active:scale-[0.98]"}
+        ${disabled ? "cursor-not-allowed" : "cursor-pointer hover:opacity-90 hover:scale-105 active:scale-[0.98]"}
         ${active ? "ring-2 ring-offset-1" : ""}
       `}
       style={{
@@ -1604,6 +1604,11 @@ function ClassActionModal({
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
 
+  // Sort state
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
   const { user } = useAuth();
 
   const formatDateLocal = (d: Date): string => {
@@ -1629,6 +1634,25 @@ function ClassActionModal({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [requestClose]);
+
+  // Close sort dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+    if (showSortDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showSortDropdown]);
+
+  // Reset sort when type or date changes
+  useEffect(() => {
+    setSortOrder(null);
+    setShowSortDropdown(false);
+  }, [type, date]);
 
   // Handle resizing
   useEffect(() => {
@@ -1793,8 +1817,18 @@ function ClassActionModal({
 
       out.push({ ...s, hasAbsence });
     }
+
+    // Sort by competitionScore if sortOrder is set
+    if (sortOrder) {
+      out.sort((a, b) => {
+        const scoreA = studentProfiles.get(a._id?.toString() || "")?.competitionScore || 0;
+        const scoreB = studentProfiles.get(b._id?.toString() || "")?.competitionScore || 0;
+        return sortOrder === "asc" ? scoreA - scoreB : scoreB - scoreA;
+      });
+    }
+
     return out;
-  }, [role, type, students, makeupStudents, date, propAttendanceRecords, classData._id]);
+  }, [role, type, students, makeupStudents, date, propAttendanceRecords, classData._id, sortOrder, studentProfiles]);
 
   const getAttendanceStatus = useCallback(
     (studentId: string): AttendanceStatusOrNull => {
@@ -2022,7 +2056,7 @@ function ClassActionModal({
                 <div className="flex items-center gap-3 flex-1">
                   <button
                     onClick={requestClose}
-                    className="text-gray-600 hover:text-gray-800 transition-colors text-xl"
+                    className="text-gray-600 hover:text-gray-800 transition-colors text-xl cursor-pointer hover:scale-110"
                     aria-label="Quay lại"
                   >
                     ←
@@ -2038,17 +2072,74 @@ function ClassActionModal({
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => showSuccess("Tính năng tổng kết sẽ cập nhật sau")}
-                  className="ml-auto px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 whitespace-nowrap"
-                  style={{
-                    backgroundColor: "white",
-                    color: colors.darkBrown,
-                    border: `2px solid ${colors.brown}`,
-                  }}
-                >
-                  Tổng kết
-                </button>
+                <div className="flex items-center gap-3 ml-auto">
+                  {/* Sort button */}
+                  <div className="relative" ref={sortDropdownRef}>
+                    <button
+                      onClick={() => setShowSortDropdown(!showSortDropdown)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 whitespace-nowrap cursor-pointer hover:bg-gray-50"
+                      style={{
+                        backgroundColor: "transparent",
+                        color: colors.darkBrown,
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        style={{ color: colors.darkBrown }}
+                      >
+                        <path
+                          d="M2 4h12M4 8h8M6 12h4"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      Sắp xếp
+                    </button>
+                    {showSortDropdown && (
+                      <div
+                        className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg border-2 z-50 min-w-[180px]"
+                        style={{ borderColor: colors.light }}
+                      >
+                        <button
+                          onClick={() => {
+                            setSortOrder("asc");
+                            setShowSortDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors rounded-t-lg cursor-pointer"
+                          style={{ color: colors.darkBrown }}
+                        >
+                          Điểm tăng dần
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSortOrder("desc");
+                            setShowSortDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors rounded-b-lg cursor-pointer"
+                          style={{ color: colors.darkBrown }}
+                        >
+                          Điểm giảm dần
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => showSuccess("Tính năng tổng kết sẽ cập nhật sau")}
+                    className="px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 whitespace-nowrap cursor-pointer hover:shadow-md hover:scale-[1.02]"
+                    style={{
+                      backgroundColor: "white",
+                      color: colors.darkBrown,
+                      border: `2px solid ${colors.brown}`,
+                    }}
+                  >
+                    Tổng kết
+                  </button>
+                </div>
               </div>
               {/* Vùng phải header - canh với cột ranking, padding match với body */}
               <div className="flex-shrink-0 flex items-center justify-center p-4" style={{ width: `${rightSideWidth}px` }}>
@@ -2064,7 +2155,7 @@ function ClassActionModal({
               </h3>
               <button
                 onClick={requestClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer hover:scale-110"
                 style={{ fontSize: "24px", lineHeight: "1" }}
                 aria-label="Đóng"
               >
@@ -2110,11 +2201,23 @@ function ClassActionModal({
                           ref={(el) => {
                             rowRefs.current.set(studentId, el);
                           }}
-                          className="flex items-center gap-4 p-4 rounded-2xl border-2 transition-all"
+                          className="flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md"
                           style={{
                             backgroundColor: tint.bg,
                             borderColor: highlighted ? colors.darkBrown : tint.border,
                             boxShadow: highlighted ? "0 10px 22px rgba(0,0,0,0.10)" : undefined,
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!highlighted) {
+                              e.currentTarget.style.borderColor = colors.brown;
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!highlighted) {
+                              e.currentTarget.style.borderColor = tint.border;
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }
                           }}
                         >
                           {/* Avatar + name + small stats */}
@@ -2124,12 +2227,12 @@ function ClassActionModal({
                                 <img
                                   src={student.avatar}
                                   alt={student.fullName}
-                                  className="w-16 h-16 rounded-full object-cover border-2"
+                                  className="w-16 h-16 rounded-full object-cover border-2 transition-all cursor-pointer hover:scale-110 hover:shadow-md"
                                   style={{ borderColor: "rgba(0,0,0,0.10)" }}
                                 />
                               ) : (
                                 <div
-                                  className="w-16 h-16 rounded-full border-2 flex items-center justify-center font-bold"
+                                  className="w-16 h-16 rounded-full border-2 flex items-center justify-center font-bold transition-all cursor-pointer hover:scale-110 hover:shadow-md"
                                   style={{
                                     backgroundColor: "rgba(255,255,255,0.65)",
                                     borderColor: "rgba(0,0,0,0.10)",
@@ -2164,8 +2267,12 @@ function ClassActionModal({
                               <div className="font-semibold text-base mb-1 truncate" style={{ color: colors.darkBrown }}>
                                 {student.fullName}
                               </div>
-                              <div className="text-[11px] leading-snug" style={{ color: "rgba(108,88,76,0.75)" }}>
-                                {(studentRank || "-")}/{studentsForDate.length} • {competitionScore} • 360
+                              <div className="text-xs leading-snug flex items-center gap-2" style={{ color: "rgba(108,88,76,0.75)" }}>
+                                <span>{(studentRank || "-")}/{studentsForDate.length}</span>
+                                <span>•</span>
+                                <span>{competitionScore}</span>
+                                <span>•</span>
+                                <span>360</span>
                               </div>
                             </div>
                           </div>
@@ -2182,15 +2289,35 @@ function ClassActionModal({
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <input
                                 type="text"
-                                className="w-10 h-10 rounded-full border-2 text-center text-sm font-semibold"
-                                style={{ borderColor: colors.brown, color: colors.darkBrown, backgroundColor: "white" }}
+                                className="w-10 h-10 rounded-full border-2 text-center text-sm font-semibold transition-all cursor-text hover:border-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                                style={{ 
+                                  borderColor: colors.brown, 
+                                  color: colors.darkBrown, 
+                                  backgroundColor: "white",
+                                }}
                                 aria-label="Input tròn"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = colors.mediumGreen;
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = colors.brown;
+                                }}
                               />
                               <input
                                 type="text"
-                                className="w-12 h-10 rounded border-2 text-center text-sm font-semibold"
-                                style={{ borderColor: colors.brown, color: colors.darkBrown, backgroundColor: "white" }}
+                                className="w-12 h-10 rounded border-2 text-center text-sm font-semibold transition-all cursor-text hover:border-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                                style={{ 
+                                  borderColor: colors.brown, 
+                                  color: colors.darkBrown, 
+                                  backgroundColor: "white",
+                                }}
                                 aria-label="Input chữ nhật"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = colors.mediumGreen;
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = colors.brown;
+                                }}
                               />
 
                               <StatusPill
