@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Class } from "@/models/Class";
 import { StudentEnrollment } from "@/models/StudentEnrollment";
 import { User } from "@/models/User";
@@ -1500,6 +1500,70 @@ export default function WeekCalendar({
   );
 }
 
+// ---------- Modal helpers ----------
+type AttendanceStatus = "present" | "absent" | "excused";
+type AttendanceStatusOrNull = AttendanceStatus | null;
+
+function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-block w-4 h-4 rounded-full border-2 border-black/20 border-t-black/70 animate-spin ${className}`}
+      aria-label="Đang lưu"
+    />
+  );
+}
+
+function getInitials(name?: string) {
+  if (!name) return "";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
+  return (first + last).toUpperCase();
+}
+
+function StatusPill({
+  label,
+  active,
+  dimmed,
+  disabled,
+  saving,
+  onClick,
+  bg,
+  fg,
+}: {
+  label: string;
+  active: boolean;
+  dimmed: boolean;
+  disabled: boolean;
+  saving: boolean;
+  onClick: () => void;
+  bg: { on: string; off: string };
+  fg: { on: string; off: string };
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-10 h-10 rounded text-sm font-black transition-all select-none
+        ${disabled ? "cursor-not-allowed" : "hover:opacity-90 active:scale-[0.98]"}
+        ${active ? "ring-2 ring-offset-1" : ""}
+      `}
+      style={{
+        backgroundColor: active ? bg.on : bg.off,
+        color: active ? fg.on : fg.off,
+        opacity: saving ? 0.65 : dimmed ? 0.35 : 1,
+        filter: saving ? "grayscale(0.15)" : undefined,
+        boxShadow: active ? "0 8px 16px rgba(0,0,0,0.08)" : undefined,
+      }}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
 // Modal component for class actions
 interface ClassActionModalProps {
   type: "cancel" | "edit" | "absence" | "makeup" | "create" | "attendance";
@@ -1544,20 +1608,43 @@ function ClassActionModal({
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
   const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [savingAttendance, setSavingAttendance] = useState<string | null>(null);
+
+  // UX state
+  const [highlightStudentId, setHighlightStudentId] = useState<string | null>(null);
+  const [pendingStatusByStudent, setPendingStatusByStudent] = useState<Record<string, AttendanceStatusOrNull>>({});
+  const [recentlySavedByStudent, setRecentlySavedByStudent] = useState<Record<string, boolean>>({});
+
+  const rowRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
   const [studentProfiles, setStudentProfiles] = useState<
     Map<string, { competitionScore: number; rank?: number }>
   >(new Map());
-  // Removed confirmAttendance state - no confirmation modal needed
+
   const { user } = useAuth();
 
-  // Helper function to format date as yyyy-mm-dd in local timezone (GMT+7)
-  // This avoids timezone conversion issues when using toISOString()
-  const formatDateLocal = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+  const formatDateLocal = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
+
+  const requestClose = useCallback(() => {
+    if (savingAttendance) {
+      showError("Đang lưu điểm danh, vui lòng chờ...");
+      return;
+    }
+    onClose();
+  }, [savingAttendance, onClose]);
+
+  // ESC to close (UX #8)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") requestClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [requestClose]);
 
   // Fetch students when modal opens for teacher edit/attendance view
   useEffect(() => {
@@ -1575,36 +1662,11 @@ function ClassActionModal({
           const studentData = await Promise.all(studentPromises);
           setStudents(studentData);
 
-          // Fetch student profiles for competition scores
-          const profilePromises = studentData.map(async (student: User) => {
-            try {
-              // Fetch student profile to get competitionScore
-              const profileRes = await fetch(`/api/students/${student._id}`);
-              if (profileRes.ok) {
-                // Note: We'll need to fetch from student_profiles collection
-                // For now, we'll use a placeholder - actual implementation will fetch from student_profiles
-                return {
-                  studentId: student._id?.toString(),
-                  competitionScore: 0, // TODO: Fetch from student_profiles collection
-                };
-              }
-            } catch (error) {
-              console.error("Error fetching profile:", error);
-            }
-            return {
-              studentId: student._id?.toString(),
-              competitionScore: 0,
-            };
-          });
-          const profiles = await Promise.all(profilePromises);
+          // Placeholder profiles (logic later)
           const profileMap = new Map<string, { competitionScore: number; rank?: number }>();
-          profiles.forEach((profile) => {
-            if (profile.studentId) {
-              profileMap.set(profile.studentId, {
-                competitionScore: profile.competitionScore,
-                rank: undefined,
-              });
-            }
+          studentData.forEach((s: User) => {
+            const id = s._id?.toString();
+            if (id) profileMap.set(id, { competitionScore: 0, rank: undefined });
           });
           setStudentProfiles(profileMap);
         } catch (error) {
@@ -1613,11 +1675,12 @@ function ClassActionModal({
           setLoadingStudents(false);
         }
       };
+
       fetchStudents();
     }
   }, [type, role, classData._id, classData.enrolledStudents]);
 
-  // Fetch attendance records, enrollments, and absence requests when modal opens for attendance or edit
+  // Fetch attendance records for this class/date (teacher attendance)
   useEffect(() => {
     if ((type === "attendance" || type === "edit") && role === "teacher") {
       const fetchAttendanceData = async () => {
@@ -1625,9 +1688,7 @@ function ClassActionModal({
           const checkDate = new Date(date);
           checkDate.setHours(0, 0, 0, 0);
 
-          // Fetch attendance records for this class and date (only for attendance mode)
           if (type === "attendance") {
-            // Format date as yyyy-mm-dd in local timezone to avoid timezone issues
             const checkDateStr = formatDateLocal(checkDate);
             const attendanceResponse = await fetch(
               `/api/attendance?classId=${classData._id}&sessionDate=${checkDateStr}`
@@ -1638,12 +1699,7 @@ function ClassActionModal({
             }
           }
 
-          // Enrollment fetching removed - no longer required for attendance
-          // Students can be marked for attendance without enrollment
           setEnrollments([]);
-
-          // No need to fetch absence requests anymore
-          // Attendance records with status "excused" are sufficient
         } catch (error) {
           console.error("Error fetching attendance data:", error);
         }
@@ -1652,7 +1708,7 @@ function ClassActionModal({
     }
   }, [type, role, classData._id, classData.enrolledStudents, date]);
 
-  // Fetch makeup students when modal opens for teacher edit/attendance view
+  // Fetch makeup students
   useEffect(() => {
     if ((type === "edit" || type === "attendance") && role === "teacher") {
       const fetchMakeupStudents = async () => {
@@ -1660,18 +1716,12 @@ function ClassActionModal({
           const checkDate = new Date(date);
           checkDate.setHours(0, 0, 0, 0);
 
-          // Fetch all makeup requests to get studentId
           const allMakeupsResponse = await fetch("/api/makeups");
           if (allMakeupsResponse.ok) {
             const allMakeups = await allMakeupsResponse.json();
             const makeupForThisClass = allMakeups.filter(
-              (m: {
-                newClassId?: string;
-                newSessionDate: Date;
-                studentId?: string;
-              }) => {
-                if (m.newClassId?.toString() !== classData._id?.toString())
-                  return false;
+              (m: { newClassId?: string; newSessionDate: Date; studentId?: string }) => {
+                if (m.newClassId?.toString() !== classData._id?.toString()) return false;
                 const makeupDate = new Date(m.newSessionDate);
                 makeupDate.setHours(0, 0, 0, 0);
                 return makeupDate.getTime() === checkDate.getTime();
@@ -1681,20 +1731,14 @@ function ClassActionModal({
             if (makeupForThisClass.length > 0) {
               const studentPromises = makeupForThisClass
                 .map((req: { studentId?: string }) => {
-                  const studentId = req.studentId?.toString();
-                  if (studentId) {
-                    return fetch(`/api/students/${studentId}`)
-                      .then((res) => res.json())
-                      .catch(() => null);
-                  }
-                  return null;
+                  const sid = req.studentId?.toString();
+                  if (!sid) return null;
+                  return fetch(`/api/students/${sid}`).then((res) => res.json()).catch(() => null);
                 })
-                .filter((p: Promise<User | null> | null) => p !== null);
+                .filter((p: Promise<User | null> | null) => p !== null) as Promise<User | null>[];
 
               const makeupStudentData = await Promise.all(studentPromises);
-              setMakeupStudents(
-                makeupStudentData.filter((s) => s !== null) as User[]
-              );
+              setMakeupStudents(makeupStudentData.filter(Boolean) as User[]);
             } else {
               setMakeupStudents([]);
             }
@@ -1704,84 +1748,97 @@ function ClassActionModal({
           setMakeupStudents([]);
         }
       };
+
       fetchMakeupStudents();
     }
   }, [type, role, classData._id, date, makeupRequests]);
 
-  // Get students for this class on this date
-  const getStudentsForDate = () => {
-    if (role !== "teacher" || (type !== "edit" && type !== "attendance"))
-      return { regular: [], makeup: [] };
-
+  const studentsForDate = useMemo(() => {
+    if (role !== "teacher" || (type !== "edit" && type !== "attendance")) return [];
+    const merged = [...students, ...makeupStudents];
+    const seen = new Set<string>();
+    const out: Array<User & { hasAbsence?: boolean }> = [];
     const checkDate = new Date(date);
     checkDate.setHours(0, 0, 0, 0);
+    const checkDateStr = formatDateLocal(checkDate);
 
-    // Regular students (enrolled)
-    // Show ALL students in the class, regardless of enrollment startDate
-    // The enrollment startDate filter was causing students to disappear
-    const regularStudents = students
-      .map((student) => {
-        const studentId = student._id?.toString() || "";
-        const hasAbsence = propAttendanceRecords.some((att) => {
-          if (att.studentId?.toString() !== studentId) return false;
-          if (att.classId?.toString() !== classData._id?.toString())
-            return false;
-          if (att.status !== "excused") return false;
-          const attDate = new Date(att.sessionDate);
-          attDate.setHours(0, 0, 0, 0);
-          const attDateStr = formatDateLocal(attDate);
-          const checkDateStr = formatDateLocal(checkDate);
-          return attDateStr === checkDateStr;
-        });
-        return { ...student, hasAbsence };
-      })
-      // Remove duplicates based on student ID
-      .filter(
-        (student, index, self) =>
-          index ===
-          self.findIndex((s) => s._id?.toString() === student._id?.toString())
-      );
+    for (const s of merged) {
+      const id = s._id?.toString() || "";
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
 
-    return { regular: regularStudents, makeup: makeupStudents };
-  };
+      const hasAbsence = propAttendanceRecords.some((att) => {
+        if (att.studentId?.toString() !== id) return false;
+        if (att.classId?.toString() !== classData._id?.toString()) return false;
+        if (att.status !== "excused") return false;
+        const attDate = new Date(att.sessionDate);
+        attDate.setHours(0, 0, 0, 0);
+        const attDateStr = formatDateLocal(attDate);
+        return attDateStr === checkDateStr;
+      });
 
-  // Get class ranking (top 5 students by competition score)
-  const getClassRanking = () => {
-    const allStudents = [
-      ...getStudentsForDate().regular,
-      ...getStudentsForDate().makeup,
-    ];
-    
-    const studentsWithScores = allStudents
+      out.push({ ...s, hasAbsence });
+    }
+    return out;
+  }, [role, type, students, makeupStudents, date, propAttendanceRecords, classData._id]);
+
+  const getAttendanceStatus = useCallback(
+    (studentId: string): AttendanceStatusOrNull => {
+      const checkDate = new Date(date);
+      checkDate.setHours(0, 0, 0, 0);
+      const checkDateStr = formatDateLocal(checkDate);
+      const sid = studentId.toString();
+
+      const attendance = attendanceRecords.find((att) => {
+        const attStudentId = att.studentId?.toString() || "";
+        if (attStudentId !== sid) return false;
+        const attDate = new Date(att.sessionDate);
+        attDate.setHours(0, 0, 0, 0);
+        const attDateStr = formatDateLocal(attDate);
+        return attDateStr === checkDateStr;
+      });
+
+      if (!attendance) return null;
+      if (attendance.status === "present" || attendance.status === "absent" || attendance.status === "excused") {
+        return attendance.status;
+      }
+      return null;
+    },
+    [attendanceRecords, date]
+  );
+
+  const classRanking = useMemo(() => {
+    const withScores = studentsForDate
       .map((student) => {
         const studentId = student._id?.toString() || "";
         const profile = studentProfiles.get(studentId);
-        return {
-          ...student,
-          competitionScore: profile?.competitionScore || 0,
+        return { ...student, competitionScore: profile?.competitionScore || 0 } as User & {
+          competitionScore: number;
         };
       })
-      .sort((a, b) => b.competitionScore - a.competitionScore)
+      .sort((a, b) => (b.competitionScore || 0) - (a.competitionScore || 0))
       .slice(0, 5);
 
-    return studentsWithScores;
-  };
+    return withScores;
+  }, [studentsForDate, studentProfiles]);
+
+  const scrollToStudent = useCallback((studentId: string) => {
+    const el = rowRefs.current.get(studentId);
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
 
   const handleSubmit = () => {
     if (type === "cancel" && onCancelClass) {
       onCancelClass(classData._id!.toString(), date);
-      onClose();
+      requestClose();
     } else if (type === "edit") {
-      // Edit modal is now view-only, just close
-      onClose();
+      requestClose();
     } else if (type === "absence" && onRequestAbsence) {
       onRequestAbsence(classData._id!.toString(), date, reason);
-      onClose();
+      requestClose();
     } else if (type === "makeup" && onRequestMakeup) {
-      // This should not be called anymore since we skip the intermediate modal
-      // But keep it for backward compatibility
       onRequestMakeup(classData._id!.toString(), date, reason);
-      onClose();
+      requestClose();
     }
   };
 
@@ -1802,81 +1859,30 @@ function ClassActionModal({
     }
   };
 
-  // Get attendance status for a student
-  const getAttendanceStatus = (
-    studentId: string
-  ): "present" | "absent" | "excused" | null => {
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-    const checkDateStr = formatDateLocal(checkDate);
+  const flashSaved = useCallback((studentId: string) => {
+    setRecentlySavedByStudent((prev) => ({ ...prev, [studentId]: true }));
+    window.setTimeout(() => {
+      setRecentlySavedByStudent((prev) => {
+        const next = { ...prev };
+        delete next[studentId];
+        return next;
+      });
+    }, 900);
+  }, []);
 
-    // First check attendance records
-    // Convert studentId to string for comparison
-    const studentIdStr = studentId.toString();
-    const attendance = attendanceRecords.find((att) => {
-      const attStudentId = att.studentId?.toString() || "";
-      if (attStudentId !== studentIdStr) return false;
-      const attDate = new Date(att.sessionDate);
-      attDate.setHours(0, 0, 0, 0);
-      const attDateStr = formatDateLocal(attDate);
-      const matches = attDateStr === checkDateStr;
-      if (process.env.NODE_ENV === "development" && matches) {
-        console.log("Found attendance match:", {
-          studentId: studentIdStr,
-          attDateStr,
-          checkDateStr,
-          status: att.status,
-        });
-      }
-      return matches;
-    });
-
-    if (attendance) {
-      // Only return statuses that can be set via attendance modal
-      if (
-        attendance.status === "present" ||
-        attendance.status === "absent" ||
-        attendance.status === "excused"
-      ) {
-        return attendance.status;
-      }
-      return null;
-    }
-
-    // No attendance record found
-    return null;
-  };
-
-  // Handle marking attendance (with confirmation)
-  const handleMarkAttendanceClick = async (
-    studentId: string,
-    studentName: string,
-    status: "present" | "absent" | "excused"
-  ) => {
-    // Directly mark attendance without confirmation modal
-    await handleMarkAttendance(studentId, status);
-  };
-
-  // Handle marking attendance (actual API call)
-  const handleMarkAttendance = async (
-    studentId: string,
-    status: "present" | "absent" | "excused"
-  ) => {
+  const handleMarkAttendance = async (studentId: string, status: AttendanceStatus) => {
     if (!user?._id) {
       showError("Không thể xác định giáo viên");
       return;
     }
 
+    setPendingStatusByStudent((prev) => ({ ...prev, [studentId]: status }));
     setSavingAttendance(studentId);
 
     try {
       const checkDate = new Date(date);
       checkDate.setHours(0, 0, 0, 0);
 
-      // Enrollment is no longer required for attendance
-      // Students can be marked for attendance without enrollment
-
-      // Check if attendance already exists
       const existingAttendance = attendanceRecords.find((att) => {
         if (att.studentId.toString() !== studentId) return false;
         const attDate = new Date(att.sessionDate);
@@ -1885,46 +1891,37 @@ function ClassActionModal({
       });
 
       if (existingAttendance) {
-        // Update existing attendance
-        const response = await fetch(
-          `/api/attendance/${existingAttendance._id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status }),
-          }
+        const response = await fetch(`/api/attendance/${existingAttendance._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error?.error || "Lỗi cập nhật");
+        }
+
+        const updated = await response.json();
+        setAttendanceRecords((prev) =>
+          prev.map((att) =>
+            att._id?.toString() === existingAttendance._id?.toString() ? updated : att
+          )
         );
 
-        if (response.ok) {
-          const updated = await response.json();
-          setAttendanceRecords((prev) =>
-            prev.map((att) =>
-              att._id?.toString() === existingAttendance._id?.toString()
-                ? updated
-                : att
-            )
-          );
-          // Refresh attendance records to ensure sync
-          const refreshDateStr = formatDateLocal(checkDate);
-          const refreshResponse = await fetch(
-            `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}`
-          );
-          if (refreshResponse.ok) {
-            const refreshed = await refreshResponse.json();
-            setAttendanceRecords(refreshed);
-          }
-          showSuccess("Đã cập nhật điểm danh");
-        } else {
-          const error = await response.json();
-          showError(`Lỗi: ${error.error}`);
-        }
+        const refreshDateStr = formatDateLocal(checkDate);
+        const refreshResponse = await fetch(
+          `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}`
+        );
+        if (refreshResponse.ok) setAttendanceRecords(await refreshResponse.json());
+
+        showSuccess("Đã cập nhật điểm danh");
+        flashSaved(studentId);
       } else {
-        // Create new attendance
-        // enrollmentId is optional - no longer required
         const attendanceData: CreateAttendanceData = {
           studentId,
           classId: classData._id?.toString(),
-          sessionDate: formatDateLocal(checkDate), // Format: yyyy-mm-dd in local timezone
+          sessionDate: formatDateLocal(checkDate),
           status,
           markedBy: user._id.toString(),
         };
@@ -1935,93 +1932,60 @@ function ClassActionModal({
           body: JSON.stringify(attendanceData),
         });
 
-        if (response.ok) {
-          const newAttendance = await response.json();
-          setAttendanceRecords((prev) => [...prev, newAttendance]);
-          // Refresh attendance records to ensure sync
-          const refreshDateStr = formatDateLocal(checkDate);
-          const refreshResponse = await fetch(
-            `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}`
-          );
-          if (refreshResponse.ok) {
-            const refreshed = await refreshResponse.json();
-            setAttendanceRecords(refreshed);
-          }
-          showSuccess("Đã điểm danh");
-        } else {
+        if (!response.ok) {
           const error = await response.json();
-
-          // If attendance already exists, fetch it and update instead
-          if (error.error === "Attendance already recorded for this session") {
-            // Fetch the existing attendance record
-            const checkDateStr = formatDateLocal(checkDate);
-            const fetchResponse = await fetch(
-              `/api/attendance?studentId=${studentId}&sessionDate=${checkDateStr}`
-            );
-
-            if (fetchResponse.ok) {
-              const existingAttendances = await fetchResponse.json();
-              const existingAttendance = existingAttendances[0];
-
-              if (existingAttendance) {
-                // Update the existing attendance
-                const updateResponse = await fetch(
-                  `/api/attendance/${existingAttendance._id}`,
-                  {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ status }),
-                  }
-                );
-
-                if (updateResponse.ok) {
-                  const updated = await updateResponse.json();
-                  setAttendanceRecords((prev) => {
-                    const filtered = prev.filter(
-                      (att) =>
-                        att._id?.toString() !==
-                        existingAttendance._id?.toString()
-                    );
-                    return [...filtered, updated];
-                  });
-                  // Refresh attendance records to ensure sync
-                  const refreshResponse = await fetch(
-                    `/api/attendance?classId=${
-                      classData._id
-                    }&sessionDate=${checkDate.toISOString()}`
-                  );
-                  if (refreshResponse.ok) {
-                    const refreshed = await refreshResponse.json();
-                    setAttendanceRecords(refreshed);
-                  }
-                } else {
-                  const updateError = await updateResponse.json();
-                  showError(`Lỗi khi cập nhật: ${updateError.error}`);
-                }
-              } else {
-                showError(`Lỗi: ${error.error}`);
-              }
-            } else {
-              showError(`Lỗi: ${error.error}`);
-            }
-          } else {
-            showError(`Lỗi: ${error.error}`);
-          }
+          throw new Error(error?.error || "Lỗi tạo điểm danh");
         }
+
+        const newAttendance = await response.json();
+        setAttendanceRecords((prev) => [...prev, newAttendance]);
+
+        const refreshDateStr = formatDateLocal(checkDate);
+        const refreshResponse = await fetch(
+          `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}`
+        );
+        if (refreshResponse.ok) setAttendanceRecords(await refreshResponse.json());
+
+        showSuccess("Đã điểm danh");
+        flashSaved(studentId);
       }
     } catch (error) {
       console.error("Error marking attendance:", error);
-      showError("Có lỗi xảy ra khi điểm danh");
+      const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra khi điểm danh";
+      showError(errorMessage);
     } finally {
       setSavingAttendance(null);
+      setPendingStatusByStudent((prev) => {
+        const next = { ...prev };
+        delete next[studentId];
+        return next;
+      });
     }
+  };
+
+  const palette = [
+    { bg: "#F8C9C9", border: "#E8A3A3" },
+    { bg: "#F7E49A", border: "#E2C968" },
+    { bg: "#BFF0C5", border: "#8FD49B" },
+    { bg: "#A9D8FA", border: "#7BBCEB" },
+    { bg: "#CFC6FF", border: "#A79BFF" },
+  ];
+
+  const statusTint = (s: AttendanceStatusOrNull) => {
+    if (s === "present") return { bg: "rgba(16,185,129,0.09)", border: "rgba(16,185,129,0.35)" };
+    if (s === "excused") return { bg: "rgba(245,158,11,0.09)", border: "rgba(245,158,11,0.35)" };
+    if (s === "absent") return { bg: "rgba(220,38,38,0.09)", border: "rgba(220,38,38,0.35)" };
+    return { bg: "white", border: "rgba(0,0,0,0.10)" };
   };
 
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-[100] transition-opacity"
       style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
-      onClick={onClose}
+      onClick={requestClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={getTitle()}
     >
       <div
         className={`bg-white rounded-xl shadow-2xl transition-all transform ${
@@ -2029,10 +1993,7 @@ function ClassActionModal({
             ? "max-w-6xl w-full mx-4 h-[90vh] flex flex-col"
             : "max-w-lg w-full mx-4 p-6"
         }`}
-        style={{
-          borderColor: colors.brown,
-          borderWidth: "2px",
-        }}
+        style={{ borderColor: colors.brown, borderWidth: "2px" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -2047,33 +2008,33 @@ function ClassActionModal({
           {type === "attendance" && role === "teacher" ? (
             <div className="flex items-center gap-3">
               <button
-                onClick={onClose}
+                onClick={requestClose}
                 className="text-gray-600 hover:text-gray-800 transition-colors text-xl"
+                aria-label="Quay lại"
               >
                 ←
               </button>
-              <h3
-                className="text-xl font-bold"
-                style={{ color: colors.darkBrown }}
-              >
-                Điểm danh ngày {date.toLocaleDateString("vi-VN", {
-                  day: "2-digit",
-                  month: "2-digit",
-                })}
+              <h3 className="text-xl font-bold" style={{ color: colors.darkBrown }}>
+                Điểm danh ngày{" "}
+                {date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
               </h3>
+              {savingAttendance && (
+                <div className="ml-3 flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
+                  <Spinner />
+                  <span>Đang lưu...</span>
+                </div>
+              )}
             </div>
           ) : (
             <>
-              <h3
-                className="text-2xl font-bold"
-                style={{ color: colors.darkBrown }}
-              >
+              <h3 className="text-2xl font-bold" style={{ color: colors.darkBrown }}>
                 {getTitle()}
               </h3>
               <button
-                onClick={onClose}
+                onClick={requestClose}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
                 style={{ fontSize: "24px", lineHeight: "1" }}
+                aria-label="Đóng"
               >
                 ×
               </button>
@@ -2081,486 +2042,353 @@ function ClassActionModal({
           )}
         </div>
 
-        {/* Two-column layout for attendance and edit modal */}
         {(type === "attendance" || type === "edit") && role === "teacher" ? (
           <div className="flex-1 overflow-hidden flex">
-            {/* Left side - Student List with Attendance */}
-            <div className="flex-1 overflow-hidden flex flex-col p-6 border-r"
-              style={{ borderColor: colors.light }}
-            >
-              {/* Tổng kết button (chưa có logic - để UI trước) */}
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => showSuccess("Tính năng tổng kết sẽ cập nhật sau")}
-                  className="px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90"
-                  style={{
-                    backgroundColor: "white",
-                    color: colors.darkBrown,
-                    border: `2px solid ${colors.brown}`,
-                  }}
-                >
-                  Tổng kết
-                </button>
+            {/* Left side */}
+            <div className="flex-1 overflow-hidden flex flex-col border-r" style={{ borderColor: colors.light }}>
+              {/* Sticky header inside left column */}
+              <div className="sticky top-0 z-10 bg-white px-6 pt-5 pb-4 border-b" style={{ borderColor: colors.light }}>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => showSuccess("Tính năng tổng kết sẽ cập nhật sau")}
+                    className="px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90"
+                    style={{
+                      backgroundColor: "white",
+                      color: colors.darkBrown,
+                      border: `2px solid ${colors.brown}`,
+                    }}
+                  >
+                    Tổng kết
+                  </button>
+                </div>
               </div>
 
-              {/* Loading State */}
               {loadingStudents ? (
-                <div className="flex-1 overflow-y-auto">
-                  <div className="space-y-3 animate-pulse">
+                <div className="flex-1 overflow-y-auto px-6 pb-6">
+                  <div className="space-y-3 animate-pulse mt-4">
                     {[1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className="h-24 rounded-lg mb-2 border"
-                        style={{ backgroundColor: colors.light }}
-                      />
+                      <div key={i} className="h-24 rounded-2xl border" style={{ backgroundColor: colors.light }} />
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto pr-2">
+                <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
                   <div className="space-y-3">
-                    {/* All students (regular + makeup) */}
-                    {[...getStudentsForDate().regular, ...getStudentsForDate().makeup].map(
-                      (student: User & { hasAbsence?: boolean }) => {
-                        const studentId = student._id?.toString() || "";
-                        const currentStatus = getAttendanceStatus(studentId);
-                        const isSaving = savingAttendance === studentId;
-                        const profile = studentProfiles.get(studentId);
-                        const competitionScore = profile?.competitionScore || 0;
-                        const classRanking = getClassRanking();
-                        const studentRank = classRanking.findIndex(
-                          (s) => s._id?.toString() === studentId
-                        ) + 1;
+                    {studentsForDate.map((student) => {
+                      const studentId = student._id?.toString() || "";
+                      const currentStatus = getAttendanceStatus(studentId);
+                      const pending = pendingStatusByStudent[studentId] ?? null;
+                      const displayedStatus = pending ?? currentStatus;
 
-                        return (
-                          <div
-                            key={studentId}
-                            className="flex items-center gap-4 p-4 rounded-2xl border-2 transition-all"
-                            style={{
-                              backgroundColor: "white",
-                              borderColor: "rgba(0,0,0,0.10)",
-                            }}
-                          >
-                            {/* Avatar and student info */}
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              {/* Avatar */}
-                              <div className="flex-shrink-0">
-                                {student.avatar ? (
-                                  <img
-                                    src={student.avatar}
-                                    alt={student.fullName}
-                                    className="w-16 h-16 rounded-full object-cover border-2"
-                                    style={{ borderColor: "rgba(0,0,0,0.08)" }}
-                                  />
-                                ) : (
-                                  <div
-                                    className="w-16 h-16 rounded-full border-2"
-                                    style={{
-                                      backgroundColor: "white",
-                                      borderColor: "rgba(0,0,0,0.10)",
-                                    }}
-                                  >
-                                    {/* placeholder empty avatar */}
-                                  </div>
-                                )}
-                              </div>
+                      const isSaving = savingAttendance === studentId;
+                      const profile = studentProfiles.get(studentId);
+                      const competitionScore = profile?.competitionScore || 0;
 
-                              {/* Student name and stats */}
-                              <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-base mb-1 truncate"
-                                  style={{ color: colors.darkBrown }}
-                                >
-                                  {student.fullName}
-                                </div>
-                                <div
-                                  className="text-xs"
-                                  style={{ color: colors.brown }}
-                                >
-                                  {(studentRank || "-") + "/" +
-                                    (
-                                      getStudentsForDate().regular.length +
-                                      getStudentsForDate().makeup.length
-                                    )}{" "}
-                                  {competitionScore}{" "}360
-                                </div>
-                              </div>
-                            </div>
+                      const studentRank = classRanking.findIndex((s) => s._id?.toString() === studentId) + 1;
+                      const highlighted = highlightStudentId === studentId;
+                      const tint = statusTint(displayedStatus);
+                      const dimOthers = displayedStatus !== null;
 
-                            {/* Temporary score (middle) */}
-                            <div className="flex-shrink-0 text-center px-3">
-                              <div
-                                className="text-xl font-bold"
-                                style={{ color: colors.darkBrown }}
-                              >
-                                {competitionScore}
-                              </div>
-                            </div>
-
-                            {/* Inputs and buttons (right) */}
-                            {type === "attendance" && (
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                {/* Round input */}
-                                <input
-                                  type="text"
-                                  className="w-10 h-10 rounded-full border-2 text-center text-sm font-medium"
-                                  style={{
-                                    borderColor: colors.brown,
-                                    color: colors.darkBrown,
-                                  }}
-                                  placeholder=""
-                                />
-                                {/* Rectangular input */}
-                                <input
-                                  type="text"
-                                  className="w-12 h-10 rounded border-2 text-center text-sm font-medium"
-                                  style={{
-                                    borderColor: colors.brown,
-                                    color: colors.darkBrown,
-                                  }}
-                                  placeholder=""
-                                />
-                                {/* C-P-K buttons */}
-                                <button
-                                  onClick={() =>
-                                    handleMarkAttendanceClick(
-                                      studentId,
-                                      student.fullName,
-                                      "present"
-                                    )
-                                  }
-                                  disabled={isSaving}
-                                  className={`w-10 h-10 rounded text-sm font-bold transition-all ${
-                                    isSaving
-                                      ? "cursor-not-allowed opacity-50"
-                                      : "cursor-pointer hover:opacity-90"
-                                  } ${
-                                    currentStatus === "present"
-                                      ? "ring-2 ring-offset-1"
-                                      : ""
-                                  }`}
-                                  style={{
-                                    backgroundColor: currentStatus === "present" ? "#10B981" : "#D1FAE5",
-                                    color: currentStatus === "present" ? "white" : "#065F46",
-                                    ringColor: "#10B981",
-                                  }}
-                                >
-                                  C
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleMarkAttendanceClick(
-                                      studentId,
-                                      student.fullName,
-                                      "excused"
-                                    )
-                                  }
-                                  disabled={isSaving}
-                                  className={`w-10 h-10 rounded text-sm font-bold transition-all ${
-                                    isSaving
-                                      ? "cursor-not-allowed opacity-50"
-                                      : "cursor-pointer hover:opacity-90"
-                                  } ${
-                                    currentStatus === "excused"
-                                      ? "ring-2 ring-offset-1"
-                                      : ""
-                                  }`}
-                                  style={{
-                                    backgroundColor: currentStatus === "excused" ? "#F59E0B" : "#FEF3C7",
-                                    color: currentStatus === "excused" ? "white" : "#92400E",
-                                    ringColor: "#F59E0B",
-                                  }}
-                                >
-                                  P
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleMarkAttendanceClick(
-                                      studentId,
-                                      student.fullName,
-                                      "absent"
-                                    )
-                                  }
-                                  disabled={isSaving}
-                                  className={`w-10 h-10 rounded text-sm font-bold transition-all ${
-                                    isSaving
-                                      ? "cursor-not-allowed opacity-50"
-                                      : "cursor-pointer hover:opacity-90"
-                                  } ${
-                                    currentStatus === "absent"
-                                      ? "ring-2 ring-offset-1"
-                                      : ""
-                                  }`}
-                                  style={{
-                                    backgroundColor: currentStatus === "absent" ? "#DC2626" : "#FEE2E2",
-                                    color: currentStatus === "absent" ? "white" : "#991B1B",
-                                    ringColor: "#DC2626",
-                                  }}
-                                >
-                                  K
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-                    )}
-                    {getStudentsForDate().regular.length === 0 &&
-                      getStudentsForDate().makeup.length === 0 && (
+                      return (
                         <div
-                          className="text-center py-8 rounded-lg border"
+                          key={studentId}
+                          ref={(el) => {
+                            rowRefs.current.set(studentId, el);
+                          }}
+                          className="flex items-center gap-4 p-4 rounded-2xl border-2 transition-all"
                           style={{
-                            backgroundColor: colors.light,
-                            color: colors.brown,
-                            borderColor: "#E5E7EB",
+                            backgroundColor: tint.bg,
+                            borderColor: highlighted ? colors.darkBrown : tint.border,
+                            boxShadow: highlighted ? "0 10px 22px rgba(0,0,0,0.10)" : undefined,
                           }}
                         >
-                          <div className="text-sm">
-                            Chưa có học viên đăng ký
+                          {/* Avatar + name + small stats */}
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex-shrink-0 relative">
+                              {student.avatar ? (
+                                <img
+                                  src={student.avatar}
+                                  alt={student.fullName}
+                                  className="w-16 h-16 rounded-full object-cover border-2"
+                                  style={{ borderColor: "rgba(0,0,0,0.10)" }}
+                                />
+                              ) : (
+                                <div
+                                  className="w-16 h-16 rounded-full border-2 flex items-center justify-center font-bold"
+                                  style={{
+                                    backgroundColor: "rgba(255,255,255,0.65)",
+                                    borderColor: "rgba(0,0,0,0.10)",
+                                    color: colors.darkBrown,
+                                  }}
+                                >
+                                  {getInitials(student.fullName)}
+                                </div>
+                              )}
+
+                              {isSaving && (
+                                <div
+                                  className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 border"
+                                  style={{ borderColor: "rgba(0,0,0,0.10)" }}
+                                >
+                                  <Spinner className="w-3.5 h-3.5" />
+                                </div>
+                              )}
+
+                              {recentlySavedByStudent[studentId] && !isSaving && (
+                                <div
+                                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white border flex items-center justify-center text-[12px] font-black"
+                                  style={{ borderColor: "rgba(0,0,0,0.10)", color: "#10B981" }}
+                                  aria-label="Đã lưu"
+                                >
+                                  ✓
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-base mb-1 truncate" style={{ color: colors.darkBrown }}>
+                                {student.fullName}
+                              </div>
+                              <div className="text-[11px] leading-snug" style={{ color: "rgba(108,88,76,0.75)" }}>
+                                {(studentRank || "-")}/{studentsForDate.length} • {competitionScore} • 360
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Middle score */}
+                          <div className="flex-shrink-0 text-center px-3">
+                            <div className="text-xl font-black" style={{ color: colors.darkBrown }}>
+                              {competitionScore}
+                            </div>
+                          </div>
+
+                          {/* Right actions */}
+                          {type === "attendance" && (
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <input
+                                type="text"
+                                className="w-10 h-10 rounded-full border-2 text-center text-sm font-semibold"
+                                style={{ borderColor: colors.brown, color: colors.darkBrown, backgroundColor: "white" }}
+                                aria-label="Input tròn"
+                              />
+                              <input
+                                type="text"
+                                className="w-12 h-10 rounded border-2 text-center text-sm font-semibold"
+                                style={{ borderColor: colors.brown, color: colors.darkBrown, backgroundColor: "white" }}
+                                aria-label="Input chữ nhật"
+                              />
+
+                              <StatusPill
+                                label="C"
+                                active={displayedStatus === "present"}
+                                dimmed={dimOthers && displayedStatus !== "present"}
+                                disabled={!!savingAttendance && !isSaving}
+                                saving={isSaving}
+                                onClick={() => handleMarkAttendance(studentId, "present")}
+                                bg={{ on: "#10B981", off: "#D1FAE5" }}
+                                fg={{ on: "white", off: "#065F46" }}
+                              />
+                              <StatusPill
+                                label="P"
+                                active={displayedStatus === "excused"}
+                                dimmed={dimOthers && displayedStatus !== "excused"}
+                                disabled={!!savingAttendance && !isSaving}
+                                saving={isSaving}
+                                onClick={() => handleMarkAttendance(studentId, "excused")}
+                                bg={{ on: "#F59E0B", off: "#FEF3C7" }}
+                                fg={{ on: "white", off: "#92400E" }}
+                              />
+                              <StatusPill
+                                label="K"
+                                active={displayedStatus === "absent"}
+                                dimmed={dimOthers && displayedStatus !== "absent"}
+                                disabled={!!savingAttendance && !isSaving}
+                                saving={isSaving}
+                                onClick={() => handleMarkAttendance(studentId, "absent")}
+                                bg={{ on: "#DC2626", off: "#FEE2E2" }}
+                                fg={{ on: "white", off: "#991B1B" }}
+                              />
+                            </div>
+                          )}
                         </div>
-                      )}
+                      );
+                    })}
+
+                    {studentsForDate.length === 0 && (
+                      <div className="text-center py-10 rounded-2xl border-2"
+                        style={{ borderColor: colors.light, color: colors.brown, backgroundColor: "white" }}
+                      >
+                        <div className="text-sm">Chưa có học viên đăng ký</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Right side - Class Ranking (UI bám sát mock) */}
-            <div
-              className="w-[420px] flex-shrink-0 p-6 overflow-y-auto"
-              style={{ backgroundColor: "white" }}
-            >
-              <div className="mb-5 text-center">
-                <div
-                  className="text-sm font-semibold tracking-wide"
-                  style={{ color: colors.darkBrown }}
-                >
+            {/* Right side - Ranking */}
+            <div className="w-[420px] flex-shrink-0 p-4 overflow-y-auto" style={{ backgroundColor: "white" }}>
+              <div className="mb-2 mt-[-10px]  text-center">
+                <div className="text-lg font-semibold tracking-wide" style={{ color: colors.darkBrown }}>
                   Top xếp hạng lớp
                 </div>
               </div>
 
-              {(() => {
-                const ranking = getClassRanking();
-                const palette = [
-                  { bg: "#F8C9C9", border: "#E8A3A3" }, // 1 - pink
-                  { bg: "#F7E49A", border: "#E2C968" }, // 2 - yellow
-                  { bg: "#BFF0C5", border: "#8FD49B" }, // 3 - green
-                  { bg: "#A9D8FA", border: "#7BBCEB" }, // 4 - blue
-                  { bg: "#CFC6FF", border: "#A79BFF" }, // 5 - purple
-                ];
-
-                if (ranking.length === 0) {
-                  return (
+              {classRanking.length === 0 ? (
+                <div className="text-center py-10 rounded-2xl border-2" style={{ borderColor: colors.light, color: colors.brown }}>
+                  <div className="text-sm">Chưa có dữ liệu xếp hạng</div>
+                </div>
+              ) : (
+                <>
+                  {classRanking[0] && (
                     <div
-                      className="text-center py-10 rounded-2xl border-2"
-                      style={{ borderColor: colors.light, color: colors.brown }}
+                      className="rounded-2xl border-2 p-4 mb-4 cursor-pointer transition-all hover:opacity-95"
+                      style={{ backgroundColor: palette[0].bg, borderColor: palette[0].border }}
+                      onMouseEnter={() => {
+                        const id = classRanking[0]._id?.toString() || "";
+                        if (!id) return;
+                        setHighlightStudentId(id);
+                        scrollToStudent(id);
+                      }}
+                      onMouseLeave={() => setHighlightStudentId(null)}
                     >
-                      <div className="text-sm">Chưa có dữ liệu xếp hạng</div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-[56px] leading-none font-black" style={{ color: colors.darkBrown }}>
+                          1
+                        </div>
+                        <div className="flex-1 min-w-0 font-semibold truncate" style={{ color: colors.darkBrown }}>
+                          {classRanking[0].fullName}
+                        </div>
+                        <div className="flex-shrink-0 text-sm font-medium" style={{ color: colors.darkBrown }}>
+                          {classRanking[0].competitionScore}
+                        </div>
+                      </div>
                     </div>
-                  );
-                }
+                  )}
 
-                return (
-                  <>
-                    {/* Top 1 dạng card to */}
-                    {ranking[0] && (
-                      <div
-                        className="rounded-2xl border-2 p-4 mb-4"
-                        style={{
-                          backgroundColor: palette[0].bg,
-                          borderColor: palette[0].border,
-                        }}
-                      >
-                        <div className="flex items-center gap-4">
+                  <div className="space-y-3">
+                    {classRanking.slice(1, 5).map((s, idx) => {
+                      const rank = idx + 2;
+                      const color = palette[rank - 1] || palette[4];
+                      const id = s._id?.toString() || "";
+                      return (
+                        <div
+                          key={id}
+                          className="flex items-center gap-3 cursor-pointer transition-all hover:opacity-95"
+                          onMouseEnter={() => {
+                            if (!id) return;
+                            setHighlightStudentId(id);
+                            scrollToStudent(id);
+                          }}
+                          onMouseLeave={() => setHighlightStudentId(null)}
+                        >
+                          <div className="w-8 text-[42px] leading-none font-black" style={{ color: colors.darkBrown }}>
+                            {rank}
+                          </div>
+                          <div className="flex-1 rounded-2xl border-2 px-4 py-2 flex items-center justify-between" style={{ backgroundColor: color.bg, borderColor: color.border }}>
+                            <div className="font-semibold truncate" style={{ color: colors.darkBrown }}>
+                              {s.fullName}
+                            </div>
+                            <div className="flex-shrink-0 text-sm font-medium ml-3" style={{ color: colors.darkBrown }}>
+                              {s.competitionScore}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Podium cards */}
+                  <div className="flex items-end justify-between gap-3 mt-6">
+                    {(() => {
+                      const top5 = classRanking.slice(0, 5);
+                      const sizeByRank: Record<number, { w: number; h: number }> = {
+                        1: { w: 92, h: 170 },
+                        2: { w: 78, h: 150 },
+                        3: { w: 78, h: 150 },
+                        4: { w: 70, h: 138 },
+                        5: { w: 70, h: 138 },
+                      };
+
+                      return [4, 2, 1, 3, 5].map((rankNumber) => {
+                        const student = top5[rankNumber - 1];
+                        const id = student?._id?.toString() || "";
+                        const color = palette[rankNumber - 1] || palette[4];
+                        const sz = sizeByRank[rankNumber];
+
+                        return (
                           <div
-                            className="text-[56px] leading-none font-black"
-                            style={{ color: colors.darkBrown }}
+                            key={rankNumber}
+                            className="rounded-[26px] border-2 flex flex-col items-center justify-start pt-5 pb-4 cursor-pointer transition-all hover:opacity-95"
+                            style={{
+                              width: sz.w,
+                              height: sz.h,
+                              backgroundColor: color.bg,
+                              borderColor: color.border,
+                            }}
+                            title={student ? `${student.fullName} (#${rankNumber})` : `#${rankNumber}`}
+                            onMouseEnter={() => {
+                              if (!id) return;
+                              setHighlightStudentId(id);
+                              scrollToStudent(id);
+                            }}
+                            onMouseLeave={() => setHighlightStudentId(null)}
                           >
-                            1
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div
-                              className="font-semibold truncate"
-                              style={{ color: colors.darkBrown }}
-                            >
-                              {ranking[0].fullName}
-                            </div>
-                            <div
-                              className="text-xs mt-1"
-                              style={{ color: colors.brown }}
-                            >
-                              {ranking[0].competitionScore} điểm
-                            </div>
-                          </div>
-                          <div className="flex-shrink-0">
-                            {ranking[0].avatar ? (
+                            {student?.avatar ? (
                               <img
-                                src={ranking[0].avatar}
-                                alt={ranking[0].fullName}
-                                className="w-14 h-14 rounded-full object-cover border-2"
-                                style={{ borderColor: "rgba(0,0,0,0.08)" }}
+                                src={student.avatar}
+                                alt={student.fullName}
+                                className="w-[56px] h-[56px] rounded-full object-cover border-2"
+                                style={{ borderColor: "rgba(0,0,0,0.10)" }}
                               />
                             ) : (
                               <div
-                                className="w-14 h-14 rounded-full border-2"
+                                className="w-[56px] h-[56px] rounded-full border-2 flex items-center justify-center font-bold"
                                 style={{
-                                  borderColor: "rgba(0,0,0,0.08)",
-                                  backgroundColor: "rgba(255,255,255,0.6)",
+                                  borderColor: "rgba(0,0,0,0.10)",
+                                  backgroundColor: "rgba(255,255,255,0.55)",
+                                  color: colors.darkBrown,
                                 }}
-                              />
+                              >
+                                {getInitials(student?.fullName)}
+                              </div>
                             )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Top 2-5 dạng thanh ngang + số thứ hạng bên trái */}
-                    <div className="space-y-3">
-                      {ranking.slice(1, 5).map((s, idx) => {
-                        const rank = idx + 2;
-                        const color = palette[rank - 1] || palette[4];
-                        return (
-                          <div
-                            key={s._id?.toString()}
-                            className="flex items-center gap-3"
-                          >
-                            <div
-                              className="w-8 text-[42px] leading-none font-black"
-                              style={{ color: colors.darkBrown }}
-                            >
-                              {rank}
-                            </div>
-                            <div
-                              className="flex-1 rounded-2xl border-2 px-4 py-3"
-                              style={{
-                                backgroundColor: color.bg,
-                                borderColor: color.border,
-                              }}
-                            >
-                              <div
-                                className="font-semibold truncate"
-                                style={{ color: colors.darkBrown }}
-                              >
-                                {s.fullName}
-                              </div>
-                              <div
-                                className="text-xs mt-0.5"
-                                style={{ color: colors.brown }}
-                              >
-                                {s.competitionScore} điểm
-                              </div>
+                            <div className="mt-auto text-[44px] leading-none font-black" style={{ color: colors.darkBrown }}>
+                              {rankNumber}
                             </div>
                           </div>
                         );
-                      })}
-                    </div>
-
-                    {/* Podium cards (top 1-5) — chỉ avatar + số hạng, size khác nhau như mock */}
-                    <div className="flex items-end justify-between gap-3 mt-6">
-                      {(() => {
-                        const top5 = ranking.slice(0, 5);
-
-                        // Kích thước theo mock: 1 to nhất, 2&3 bằng nhau, 4&5 bằng nhau (nhỏ nhất)
-                        const sizeByRank: Record<number, { w: number; h: number }> = {
-                          1: { w: 92, h: 170 },
-                          2: { w: 78, h: 150 },
-                          3: { w: 78, h: 150 },
-                          4: { w: 70, h: 138 },
-                          5: { w: 70, h: 138 },
-                        };
-
-                        return [4, 2, 1, 3, 5].map((rankNumber) => {
-                          const student = top5[rankNumber - 1]; // rank 1 -> index 0
-                          const color = palette[rankNumber - 1] || palette[4];
-                          const sz = sizeByRank[rankNumber];
-
-                          return (
-                            <div
-                              key={rankNumber}
-                              className="rounded-[26px] border-2 flex flex-col items-center justify-start pt-5 pb-4"
-                              style={{
-                                width: sz.w,
-                                height: sz.h,
-                                backgroundColor: color.bg,
-                                borderColor: color.border,
-                              }}
-                              title={student ? `${student.fullName} (#${rankNumber})` : `#${rankNumber}`}
-                            >
-                              {/* Avatar */}
-                              {student?.avatar ? (
-                                <img
-                                  src={student.avatar}
-                                  alt={student.fullName}
-                                  className="w-[56px] h-[56px] rounded-full object-cover border-2"
-                                  style={{ borderColor: "rgba(0,0,0,0.10)" }}
-                                />
-                              ) : (
-                                <div
-                                  className="w-[56px] h-[56px] rounded-full border-2"
-                                  style={{
-                                    borderColor: "rgba(0,0,0,0.10)",
-                                    backgroundColor: "rgba(255,255,255,0.55)",
-                                  }}
-                                />
-                              )}
-
-                              {/* Rank number */}
-                              <div
-                                className="mt-auto text-[44px] leading-none font-black"
-                                style={{ color: colors.darkBrown }}
-                              >
-                                {rankNumber}
-                              </div>
-                            </div>
-                          );
-                        });
-                      })()}
-                    </div>
-
-                  </>
-                );
-              })()}
+                      });
+                    })()}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : (
           <>
-            {/* Class Info for other modals (not attendance/edit for teacher) */}
+            {/* Content for other modal types kept as-is (trimmed here for brevity in refactor) */}
             <div className="mb-6 space-y-3">
               <div className="flex items-start gap-3">
-                <div
-                  className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
-                  style={{ backgroundColor: colors.mediumGreen }}
-                />
+                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ backgroundColor: colors.mediumGreen }} />
                 <div className="flex-1">
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: colors.brown }}>
                     Tên lớp
                   </div>
-                  <div
-                    className="text-base font-medium"
-                    style={{ color: colors.darkBrown }}
-                  >
+                  <div className="text-base font-medium" style={{ color: colors.darkBrown }}>
                     {classData.name}
                   </div>
                 </div>
               </div>
+
               <div className="flex items-start gap-3">
-                <div
-                  className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
-                  style={{ backgroundColor: colors.mediumGreen }}
-                />
+                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ backgroundColor: colors.mediumGreen }} />
                 <div className="flex-1">
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: colors.brown }}>
                     Ngày học
                   </div>
-                  <div
-                    className="text-base font-medium"
-                    style={{ color: colors.darkBrown }}
-                  >
+                  <div className="text-base font-medium" style={{ color: colors.darkBrown }}>
                     {date.toLocaleDateString("vi-VN", {
                       weekday: "long",
                       year: "numeric",
@@ -2570,30 +2398,18 @@ function ClassActionModal({
                   </div>
                 </div>
               </div>
+
               <div className="flex items-start gap-3">
-                <div
-                  className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
-                  style={{ backgroundColor: colors.mediumGreen }}
-                />
+                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ backgroundColor: colors.mediumGreen }} />
                 <div className="flex-1">
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: colors.brown }}>
                     Thời gian
                   </div>
-                  <div
-                    className="text-base font-medium"
-                    style={{ color: colors.darkBrown }}
-                  >
+                  <div className="text-base font-medium" style={{ color: colors.darkBrown }}>
                     {(() => {
                       const dayOfWeek = date.getDay();
-                      const session = classData.sessions?.find(
-                        (s) => s.dayOfWeek === dayOfWeek
-                      );
-                      if (session) {
-                        return `${session.startTime} - ${session.endTime}`;
-                      }
+                      const session = classData.sessions?.find((s) => s.dayOfWeek === dayOfWeek);
+                      if (session) return `${session.startTime} - ${session.endTime}`;
                       if (classData.sessions && classData.sessions.length > 0) {
                         const firstSession = classData.sessions[0];
                         return `${firstSession.startTime} - ${firstSession.endTime}`;
@@ -2609,20 +2425,14 @@ function ClassActionModal({
 
         {(type === "cancel" || type === "absence") && (
           <div className="mb-4">
-            <label
-              className="block text-sm font-medium mb-2"
-              style={{ color: colors.darkBrown }}
-            >
+            <label className="block text-sm font-medium mb-2" style={{ color: colors.darkBrown }}>
               Lý do
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full p-2 border rounded"
-              style={{
-                borderColor: colors.brown,
-                color: colors.darkBrown,
-              }}
+              style={{ borderColor: colors.brown, color: colors.darkBrown }}
               rows={3}
               placeholder="Nhập lý do..."
             />
@@ -2631,20 +2441,14 @@ function ClassActionModal({
 
         {type === "makeup" && (
           <div className="mb-4">
-            <label
-              className="block text-sm font-medium mb-2"
-              style={{ color: colors.darkBrown }}
-            >
+            <label className="block text-sm font-medium mb-2" style={{ color: colors.darkBrown }}>
               Lý do xin học bù *
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full p-2 border rounded"
-              style={{
-                borderColor: colors.brown,
-                color: colors.darkBrown,
-              }}
+              style={{ borderColor: colors.brown, color: colors.darkBrown }}
               rows={3}
               placeholder="Nhập lý do..."
               required
@@ -2652,40 +2456,24 @@ function ClassActionModal({
           </div>
         )}
 
-        {/* Confirmation Modal removed - direct attendance marking */}
-
-        {/* Action Buttons */}
-        <div
-          className="flex justify-end gap-3 pt-2 border-t flex-shrink-0"
-          style={{ borderColor: colors.light }}
-        >
+        <div className="flex justify-end gap-3 pt-2 border-t flex-shrink-0" style={{ borderColor: colors.light }}>
           {(type === "attendance" || type === "edit") && role === "teacher" ? (
             <button
-              onClick={onClose}
+              onClick={requestClose}
               className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
-              style={{
-                backgroundColor: colors.brown,
-              }}
+              style={{ backgroundColor: colors.brown }}
             >
               Đóng
             </button>
           ) : (
-            <>
-              <button
-                onClick={handleSubmit}
-                className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: colors.mediumGreen,
-                }}
-                disabled={
-                  (type === "cancel" || type === "absence") && !reason.trim()
-                }
-              >
-                {type === "cancel" || type === "absence" || type === "makeup"
-                  ? "Xác nhận"
-                  : "Đóng"}
-              </button>
-            </>
+            <button
+              onClick={handleSubmit}
+              className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: colors.mediumGreen }}
+              disabled={(type === "cancel" || type === "absence") && !reason.trim()}
+            >
+              {type === "cancel" || type === "absence" || type === "makeup" ? "Xác nhận" : "Đóng"}
+            </button>
           )}
         </div>
       </div>
