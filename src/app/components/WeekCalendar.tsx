@@ -1599,6 +1599,11 @@ function ClassActionModal({
     Map<string, { competitionScore: number; rank?: number }>
   >(new Map());
 
+  // Resizable sidebar state
+  const [rightSideWidth, setRightSideWidth] = useState(420); // Default width
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
+
   const { user } = useAuth();
 
   const formatDateLocal = (d: Date): string => {
@@ -1624,6 +1629,36 @@ function ClassActionModal({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [requestClose]);
+
+  // Handle resizing
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const modal = resizeRef.current.closest('.bg-white.rounded-xl');
+      if (!modal) return;
+      
+      const modalRect = (modal as HTMLElement).getBoundingClientRect();
+      const newRightWidth = modalRect.right - e.clientX;
+      
+      // Min 300px, max 600px
+      const clampedWidth = Math.max(300, Math.min(600, newRightWidth));
+      setRightSideWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   // Fetch students when modal opens for teacher edit/attendance view
   useEffect(() => {
@@ -1939,11 +1974,11 @@ function ClassActionModal({
   };
 
   const palette = [
-    { bg: "#F8C9C9", border: "#E8A3A3" },
-    { bg: "#F7E49A", border: "#E2C968" },
-    { bg: "#BFF0C5", border: "#8FD49B" },
-    { bg: "#A9D8FA", border: "#7BBCEB" },
-    { bg: "#CFC6FF", border: "#A79BFF" },
+    { bg: "#f4d06f", border: "#d4b05f" }, // Top 1
+    { bg: "#c9ccd6", border: "#a9acb6" }, // Top 2
+    { bg: "#e6b8a2", border: "#c69882" }, // Top 3
+    { bg: "#b6c4d9", border: "#96a4b9" }, // Top 4
+    { bg: "#b8e0d2", border: "#98c0b2" }, // Top 5
   ];
 
   const statusTint = (s: AttendanceStatusOrNull) => {
@@ -2015,8 +2050,8 @@ function ClassActionModal({
                   Tổng kết
                 </button>
               </div>
-              {/* Vùng phải header - w-[420px] canh với cột ranking, padding match với body */}
-              <div className="w-[420px] flex-shrink-0 flex items-center justify-center p-4">
+              {/* Vùng phải header - canh với cột ranking, padding match với body */}
+              <div className="flex-shrink-0 flex items-center justify-center p-4" style={{ width: `${rightSideWidth}px` }}>
                 <div className="text-lg font-semibold tracking-wide" style={{ color: colors.darkBrown }}>
                   Top xếp hạng lớp
                 </div>
@@ -2040,7 +2075,7 @@ function ClassActionModal({
         </div>
 
         {type === "attendance" && role === "teacher" ? (
-          <div className="flex-1 overflow-hidden flex">
+          <div className="flex-1 overflow-hidden flex" ref={resizeRef}>
             {/* Left side */}
             <div className="flex-1 overflow-hidden flex flex-col border-r" style={{ borderColor: colors.light }}>
               {loadingStudents ? (
@@ -2206,8 +2241,33 @@ function ClassActionModal({
               )}
             </div>
 
+            {/* Resizer handle */}
+            <div
+              className="flex-shrink-0 cursor-col-resize relative group"
+              style={{ 
+                width: '1px',
+                backgroundColor: isResizing ? colors.brown : 'transparent',
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+              }}
+              onMouseEnter={(e) => {
+                if (!isResizing) {
+                  e.currentTarget.style.backgroundColor = colors.light;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isResizing) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-4" />
+            </div>
+
             {/* Right side - Ranking */}
-            <div className="w-[420px] flex-shrink-0 p-4 overflow-y-auto" style={{ backgroundColor: "white" }}>
+            <div className="flex-shrink-0 p-4 overflow-y-auto" style={{ backgroundColor: "white", width: `${rightSideWidth}px` }}>
               {classRanking.length === 0 ? (
                 <div className="text-center py-10 rounded-2xl border-2" style={{ borderColor: colors.light, color: colors.brown }}>
                   <div className="text-sm">Chưa có dữ liệu xếp hạng</div>
@@ -2314,21 +2374,30 @@ function ClassActionModal({
 
                   {classRanking[0] && (
                     <div
-                      className="rounded-2xl border-2 p-3 mb-4 cursor-pointer transition-all hover:opacity-95"
-                      style={{ backgroundColor: palette[0].bg, borderColor: palette[0].border }}
-                      onMouseEnter={() => {
+                      className="rounded-2xl border-2 p-3 mb-4 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg"
+                      style={{ 
+                        backgroundColor: palette[0].bg, 
+                        borderColor: palette[0].border,
+                      }}
+                      onMouseEnter={(e) => {
                         const id = classRanking[0]._id?.toString() || "";
                         if (!id) return;
                         setHighlightStudentId(id);
                         scrollToStudent(id);
+                        e.currentTarget.style.borderColor = palette[0].border;
+                        e.currentTarget.style.boxShadow = `0 8px 16px rgba(0,0,0,0.15)`;
                       }}
-                      onMouseLeave={() => setHighlightStudentId(null)}
+                      onMouseLeave={(e) => {
+                        setHighlightStudentId(null);
+                        e.currentTarget.style.borderColor = palette[0].border;
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-7">
                         <div className="text-[44px] leading-none font-black" style={{ color: colors.darkBrown }}>
                           1
                         </div>
-                        <div className="flex-1 min-w-0 font-semibold truncate" style={{ color: colors.darkBrown }}>
+                        <div className="text-xl flex-1 min-w-0 font-semibold truncate" style={{ color: colors.darkBrown }}>
                           {classRanking[0].fullName}
                         </div>
                         <div className="flex-shrink-0 text-sm font-medium" style={{ color: colors.darkBrown }}>
@@ -2346,7 +2415,7 @@ function ClassActionModal({
                       return (
                         <div
                           key={id}
-                          className="flex items-center gap-3 cursor-pointer transition-all hover:opacity-95"
+                          className="flex items-center gap-3 cursor-pointer transition-all"
                           onMouseEnter={() => {
                             if (!id) return;
                             setHighlightStudentId(id);
@@ -2354,10 +2423,21 @@ function ClassActionModal({
                           }}
                           onMouseLeave={() => setHighlightStudentId(null)}
                         >
-                          <div className="w-8 text-[42px] leading-none font-black" style={{ color: colors.darkBrown }}>
+                          <div className="ml-3 w-8 text-[42px] leading-none font-black transition-all" style={{ color: colors.darkBrown }}>
                             {rank}
                           </div>
-                          <div className="flex-1 rounded-2xl border-2 px-4 py-2 flex items-center justify-between" style={{ backgroundColor: color.bg, borderColor: color.border }}>
+                          <div 
+                            className="ml-[-10px] flex-1 rounded-2xl border-2 px-3 py-2 flex items-center justify-between transition-all hover:scale-[1.02] hover:shadow-md"
+                            style={{ backgroundColor: color.bg, borderColor: color.border }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = color.border;
+                              e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.12)`;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = color.border;
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
                             <div className="font-semibold truncate" style={{ color: colors.darkBrown }}>
                               {s.fullName}
                             </div>
