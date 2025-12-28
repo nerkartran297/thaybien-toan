@@ -68,6 +68,7 @@ async function initTeacher() {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const DEFAULT_AVATAR = "/avatars/default.png";
     // Create teacher user
     const userResult = await db.collection("users").insertOne({
       username,
@@ -75,6 +76,7 @@ async function initTeacher() {
       fullName,
       phone,
       role: "teacher",
+      avatar: DEFAULT_AVATAR,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

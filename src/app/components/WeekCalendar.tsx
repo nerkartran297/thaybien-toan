@@ -1544,6 +1544,9 @@ function ClassActionModal({
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
   const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [savingAttendance, setSavingAttendance] = useState<string | null>(null);
+  const [studentProfiles, setStudentProfiles] = useState<
+    Map<string, { competitionScore: number; rank?: number }>
+  >(new Map());
   // Removed confirmAttendance state - no confirmation modal needed
   const { user } = useAuth();
 
@@ -1571,6 +1574,39 @@ function ClassActionModal({
           );
           const studentData = await Promise.all(studentPromises);
           setStudents(studentData);
+
+          // Fetch student profiles for competition scores
+          const profilePromises = studentData.map(async (student: User) => {
+            try {
+              // Fetch student profile to get competitionScore
+              const profileRes = await fetch(`/api/students/${student._id}`);
+              if (profileRes.ok) {
+                // Note: We'll need to fetch from student_profiles collection
+                // For now, we'll use a placeholder - actual implementation will fetch from student_profiles
+                return {
+                  studentId: student._id?.toString(),
+                  competitionScore: 0, // TODO: Fetch from student_profiles collection
+                };
+              }
+            } catch (error) {
+              console.error("Error fetching profile:", error);
+            }
+            return {
+              studentId: student._id?.toString(),
+              competitionScore: 0,
+            };
+          });
+          const profiles = await Promise.all(profilePromises);
+          const profileMap = new Map<string, { competitionScore: number; rank?: number }>();
+          profiles.forEach((profile) => {
+            if (profile.studentId) {
+              profileMap.set(profile.studentId, {
+                competitionScore: profile.competitionScore,
+                rank: undefined,
+              });
+            }
+          });
+          setStudentProfiles(profileMap);
         } catch (error) {
           console.error("Error fetching students:", error);
         } finally {
@@ -1707,6 +1743,28 @@ function ClassActionModal({
       );
 
     return { regular: regularStudents, makeup: makeupStudents };
+  };
+
+  // Get class ranking (top 5 students by competition score)
+  const getClassRanking = () => {
+    const allStudents = [
+      ...getStudentsForDate().regular,
+      ...getStudentsForDate().makeup,
+    ];
+    
+    const studentsWithScores = allStudents
+      .map((student) => {
+        const studentId = student._id?.toString() || "";
+        const profile = studentProfiles.get(studentId);
+        return {
+          ...student,
+          competitionScore: profile?.competitionScore || 0,
+        };
+      })
+      .sort((a, b) => b.competitionScore - a.competitionScore)
+      .slice(0, 5);
+
+    return studentsWithScores;
   };
 
   const handleSubmit = () => {
@@ -1986,471 +2044,274 @@ function ClassActionModal({
           }`}
           style={{ borderColor: colors.light }}
         >
-          <h3
-            className="text-2xl font-bold"
-            style={{ color: colors.darkBrown }}
-          >
-            {getTitle()}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            style={{ fontSize: "24px", lineHeight: "1" }}
-          >
-            ×
-          </button>
+          {type === "attendance" && role === "teacher" ? (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onClose}
+                className="text-gray-600 hover:text-gray-800 transition-colors text-xl"
+              >
+                ←
+              </button>
+              <h3
+                className="text-xl font-bold"
+                style={{ color: colors.darkBrown }}
+              >
+                Điểm danh ngày {date.toLocaleDateString("vi-VN", {
+                  day: "2-digit",
+                  month: "2-digit",
+                })}
+              </h3>
+            </div>
+          ) : (
+            <>
+              <h3
+                className="text-2xl font-bold"
+                style={{ color: colors.darkBrown }}
+              >
+                {getTitle()}
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                style={{ fontSize: "24px", lineHeight: "1" }}
+              >
+                ×
+              </button>
+            </>
+          )}
         </div>
 
         {/* Two-column layout for attendance and edit modal */}
         {(type === "attendance" || type === "edit") && role === "teacher" ? (
           <div className="flex-1 overflow-hidden flex">
-            {/* Left side - Class Info */}
-            <div
-              className="w-100 flex-shrink-0 p-6 border-r overflow-y-auto"
-              style={{
-                borderColor: colors.light,
-                backgroundColor: colors.light,
-              }}
+            {/* Left side - Student List with Attendance */}
+            <div className="flex-1 overflow-hidden flex flex-col p-6 border-r"
+              style={{ borderColor: colors.light }}
             >
-              <h4
-                className="text-lg font-bold mb-4"
-                style={{ color: colors.darkBrown }}
-              >
-                Thông tin lớp học
-              </h4>
-              <div className="space-y-4">
-                <div>
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
-                    Tên lớp
-                  </div>
-                  <div
-                    className="text-base font-medium"
-                    style={{ color: colors.darkBrown }}
-                  >
-                    {classData.name}
-                  </div>
-                </div>
-                <div>
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
-                    Khối
-                  </div>
-                  <div
-                    className="text-base font-medium"
-                    style={{ color: colors.darkBrown }}
-                  >
-                    Khối {classData.grade}
-                  </div>
-                </div>
-                <div>
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
-                    Ngày học
-                  </div>
-                  <div
-                    className="text-base font-medium"
-                    style={{ color: colors.darkBrown }}
-                  >
-                    {date.toLocaleDateString("vi-VN", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
-                    Thời gian
-                  </div>
-                  <div
-                    className="text-base font-medium"
-                    style={{ color: colors.darkBrown }}
-                  >
-                    {(() => {
-                      const dayOfWeek = date.getDay();
-                      const session = classData.sessions?.find(
-                        (s) => s.dayOfWeek === dayOfWeek
-                      );
-                      if (session) {
-                        return `${session.startTime} - ${session.endTime}`;
-                      }
-                      if (classData.sessions && classData.sessions.length > 0) {
-                        const firstSession = classData.sessions[0];
-                        return `${firstSession.startTime} - ${firstSession.endTime}`;
-                      }
-                      return "N/A";
-                    })()}
-                  </div>
-                </div>
-                <div>
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
-                    Ca học trong tuần
-                  </div>
-                  <div className="space-y-1">
-                    {classData.sessions && classData.sessions.length > 0 ? (
-                      classData.sessions.map((session, idx) => {
-                        const dayNames = [
-                          "Chủ nhật",
-                          "Thứ hai",
-                          "Thứ ba",
-                          "Thứ tư",
-                          "Thứ năm",
-                          "Thứ sáu",
-                          "Thứ bảy",
-                        ];
-                        return (
-                          <div
-                            key={idx}
-                            className="text-md font-medium"
-                            style={{ color: colors.darkBrown }}
-                          >
-                            {dayNames[session.dayOfWeek]}: {session.startTime} -{" "}
-                            {session.endTime}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-sm text-gray-400">
-                        Chưa có ca học
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <div
-                    className="text-xs font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: colors.brown }}
-                  >
-                    Số học sinh
-                  </div>
-                  <div
-                    className="text-base font-medium"
-                    style={{ color: colors.darkBrown }}
-                  >
-                    {getStudentsForDate().regular.length +
-                      getStudentsForDate().makeup.length}{" "}
-                    học sinh
-                  </div>
-                </div>
+              {/* Tổng kết button (chưa có logic - để UI trước) */}
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => showSuccess("Tính năng tổng kết sẽ cập nhật sau")}
+                  className="px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90"
+                  style={{
+                    backgroundColor: "white",
+                    color: colors.darkBrown,
+                    border: `2px solid ${colors.brown}`,
+                  }}
+                >
+                  Tổng kết
+                </button>
               </div>
-            </div>
 
-            {/* Right side - Student List */}
-            <div className="flex-1 overflow-hidden flex flex-col p-6">
-              <h4
-                className="text-lg font-bold mb-4"
-                style={{ color: colors.darkBrown }}
-              >
-                Danh sách học sinh
-              </h4>
               {/* Loading State */}
               {loadingStudents ? (
                 <div className="flex-1 overflow-y-auto">
                   <div className="space-y-3 animate-pulse">
-                    <div>
+                    {[1, 2, 3, 4, 5].map((i) => (
                       <div
-                        className="h-4 w-32 rounded mb-2"
+                        key={i}
+                        className="h-24 rounded-lg mb-2 border"
                         style={{ backgroundColor: colors.light }}
                       />
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div
-                          key={i}
-                          className="h-20 rounded-lg mb-2"
-                          style={{ backgroundColor: colors.light }}
-                        />
-                      ))}
-                    </div>
+                    ))}
                   </div>
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto pr-2">
-                  <div className="space-y-4">
-                    {/* Regular students */}
-                    {getStudentsForDate().regular.length > 0 && (
-                      <div>
-                        <div
-                          className="text-xs font-semibold mb-2 px-1 uppercase tracking-wide"
-                          style={{ color: colors.brown }}
-                        >
-                          Học thường xuyên (
-                          {getStudentsForDate().regular.length})
-                        </div>
-                        <div className="space-y-2">
-                          {getStudentsForDate().regular.map(
-                            (student: User & { hasAbsence?: boolean }) => {
-                              const studentId = student._id?.toString() || "";
-                              const currentStatus =
-                                getAttendanceStatus(studentId);
-                              const isSaving = savingAttendance === studentId;
+                  <div className="space-y-3">
+                    {/* All students (regular + makeup) */}
+                    {[...getStudentsForDate().regular, ...getStudentsForDate().makeup].map(
+                      (student: User & { hasAbsence?: boolean }) => {
+                        const studentId = student._id?.toString() || "";
+                        const currentStatus = getAttendanceStatus(studentId);
+                        const isSaving = savingAttendance === studentId;
+                        const profile = studentProfiles.get(studentId);
+                        const competitionScore = profile?.competitionScore || 0;
+                        const classRanking = getClassRanking();
+                        const studentRank = classRanking.findIndex(
+                          (s) => s._id?.toString() === studentId
+                        ) + 1;
 
-                              return (
-                                <div
-                                  key={studentId}
-                                  className="flex items-center justify-between p-3 rounded-lg transition-all"
-                                  style={{
-                                    backgroundColor: colors.light,
-                                    color: colors.darkBrown,
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold"
-                                      style={{
-                                        backgroundColor: colors.mediumGreen,
-                                        color: "white",
-                                      }}
-                                    >
-                                      {student.fullName.charAt(0).toUpperCase()}
-                                    </div>
-                                    <span className="font-medium">
-                                      {student.fullName}
-                                    </span>
-                                    {student.hasAbsence && (
-                                      <span
-                                        className="text-xs px-2 py-1 rounded-full"
-                                        style={{
-                                          backgroundColor: "#FEE2E2",
-                                          color: "#DC2626",
-                                        }}
-                                      >
-                                        Đã xin vắng
-                                      </span>
-                                    )}
-                                  </div>
-                                  {type === "attendance" && (
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      {/* Always show all buttons - highlight current status */}
-                                      <button
-                                        onClick={() =>
-                                          handleMarkAttendanceClick(
-                                            studentId,
-                                            student.fullName,
-                                            "present"
-                                          )
-                                        }
-                                        disabled={isSaving}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                          isSaving
-                                            ? "cursor-not-allowed opacity-50"
-                                            : "cursor-pointer hover:opacity-75"
-                                        } ${
-                                          currentStatus === "present"
-                                            ? "ring-2 ring-offset-2 ring-green-500"
-                                            : ""
-                                        }`}
-                                        style={{
-                                          backgroundColor: "#10B981",
-                                          color: "white",
-                                        }}
-                                      >
-                                        ✅ Có
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          handleMarkAttendanceClick(
-                                            studentId,
-                                            student.fullName,
-                                            "absent"
-                                          )
-                                        }
-                                        disabled={isSaving}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                          isSaving
-                                            ? "cursor-not-allowed opacity-50"
-                                            : "cursor-pointer hover:opacity-75"
-                                        } ${
-                                          currentStatus === "absent"
-                                            ? "ring-2 ring-offset-2 ring-red-500"
-                                            : ""
-                                        }`}
-                                        style={{
-                                          backgroundColor: "#DC2626",
-                                          color: "white",
-                                        }}
-                                      >
-                                        ❌ Vắng
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          handleMarkAttendanceClick(
-                                            studentId,
-                                            student.fullName,
-                                            "excused"
-                                          )
-                                        }
-                                        disabled={isSaving}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                          isSaving
-                                            ? "cursor-not-allowed opacity-50"
-                                            : "cursor-pointer hover:opacity-75"
-                                        } ${
-                                          currentStatus === "excused"
-                                            ? "ring-2 ring-offset-2 ring-yellow-500"
-                                            : ""
-                                        }`}
-                                        style={{
-                                          backgroundColor: "#F59E0B",
-                                          color: "white",
-                                        }}
-                                      >
-                                        ⚠️ Có phép
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {/* Makeup students */}
-                    {getStudentsForDate().makeup.length > 0 && (
-                      <div>
-                        <div
-                          className="text-xs font-semibold mb-2 px-1 uppercase tracking-wide"
-                          style={{ color: colors.brown }}
-                        >
-                          Học bù ({getStudentsForDate().makeup.length})
-                        </div>
-                        <div className="space-y-2">
-                          {getStudentsForDate().makeup.map((makeup: User) => {
-                            const studentId = makeup._id?.toString() || "";
-                            const currentStatus =
-                              getAttendanceStatus(studentId);
-                            const isSaving = savingAttendance === studentId;
-
-                            return (
-                              <div
-                                key={studentId}
-                                className="flex items-center justify-between p-3 rounded-lg transition-all"
-                                style={{
-                                  backgroundColor: colors.lightGreen,
-                                  color: colors.darkBrown,
-                                }}
-                              >
-                                <div className="flex items-center gap-2">
+                        return (
+                          <div
+                            key={studentId}
+                            className="flex items-center gap-4 p-4 rounded-2xl border-2 transition-all"
+                            style={{
+                              backgroundColor: "white",
+                              borderColor: "rgba(0,0,0,0.10)",
+                            }}
+                          >
+                            {/* Avatar and student info */}
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              {/* Avatar */}
+                              <div className="flex-shrink-0">
+                                {student.avatar ? (
+                                  <img
+                                    src={student.avatar}
+                                    alt={student.fullName}
+                                    className="w-16 h-16 rounded-full object-cover border-2"
+                                    style={{ borderColor: "rgba(0,0,0,0.08)" }}
+                                  />
+                                ) : (
                                   <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold"
+                                    className="w-16 h-16 rounded-full border-2"
                                     style={{
-                                      backgroundColor: colors.mediumGreen,
-                                      color: "white",
+                                      backgroundColor: "white",
+                                      borderColor: "rgba(0,0,0,0.10)",
                                     }}
                                   >
-                                    {makeup.fullName?.charAt(0).toUpperCase() ||
-                                      "?"}
-                                  </div>
-                                  <span className="font-medium">
-                                    {makeup.fullName || "Học sinh"}
-                                  </span>
-                                </div>
-                                {type === "attendance" && (
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    {/* Always show all buttons - highlight current status */}
-                                    <button
-                                      onClick={() =>
-                                        handleMarkAttendanceClick(
-                                          studentId,
-                                          makeup.fullName || "Học sinh",
-                                          "present"
-                                        )
-                                      }
-                                      disabled={isSaving}
-                                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                        isSaving
-                                          ? "cursor-not-allowed opacity-50"
-                                          : "cursor-pointer hover:opacity-75"
-                                      } ${
-                                        currentStatus === "present"
-                                          ? "ring-2 ring-offset-2 ring-green-500"
-                                          : ""
-                                      }`}
-                                      style={{
-                                        backgroundColor: "#10B981",
-                                        color: "white",
-                                      }}
-                                    >
-                                      ✅ Có
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        handleMarkAttendanceClick(
-                                          studentId,
-                                          makeup.fullName || "Học sinh",
-                                          "absent"
-                                        )
-                                      }
-                                      disabled={isSaving}
-                                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                        isSaving
-                                          ? "cursor-not-allowed opacity-50"
-                                          : "cursor-pointer hover:opacity-75"
-                                      } ${
-                                        currentStatus === "absent"
-                                          ? "ring-2 ring-offset-2 ring-red-500"
-                                          : ""
-                                      }`}
-                                      style={{
-                                        backgroundColor: "#DC2626",
-                                        color: "white",
-                                      }}
-                                    >
-                                      ❌ Vắng
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        handleMarkAttendanceClick(
-                                          studentId,
-                                          makeup.fullName || "Học sinh",
-                                          "excused"
-                                        )
-                                      }
-                                      disabled={isSaving}
-                                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                        isSaving
-                                          ? "cursor-not-allowed opacity-50"
-                                          : "cursor-pointer hover:opacity-75"
-                                      } ${
-                                        currentStatus === "excused"
-                                          ? "ring-2 ring-offset-2 ring-yellow-500"
-                                          : ""
-                                      }`}
-                                      style={{
-                                        backgroundColor: "#F59E0B",
-                                        color: "white",
-                                      }}
-                                    >
-                                      ⚠️ Có phép
-                                    </button>
+                                    {/* placeholder empty avatar */}
                                   </div>
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+
+                              {/* Student name and stats */}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-base mb-1 truncate"
+                                  style={{ color: colors.darkBrown }}
+                                >
+                                  {student.fullName}
+                                </div>
+                                <div
+                                  className="text-xs"
+                                  style={{ color: colors.brown }}
+                                >
+                                  {(studentRank || "-") + "/" +
+                                    (
+                                      getStudentsForDate().regular.length +
+                                      getStudentsForDate().makeup.length
+                                    )}{" "}
+                                  {competitionScore}{" "}360
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Temporary score (middle) */}
+                            <div className="flex-shrink-0 text-center px-3">
+                              <div
+                                className="text-xl font-bold"
+                                style={{ color: colors.darkBrown }}
+                              >
+                                {competitionScore}
+                              </div>
+                            </div>
+
+                            {/* Inputs and buttons (right) */}
+                            {type === "attendance" && (
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {/* Round input */}
+                                <input
+                                  type="text"
+                                  className="w-10 h-10 rounded-full border-2 text-center text-sm font-medium"
+                                  style={{
+                                    borderColor: colors.brown,
+                                    color: colors.darkBrown,
+                                  }}
+                                  placeholder=""
+                                />
+                                {/* Rectangular input */}
+                                <input
+                                  type="text"
+                                  className="w-12 h-10 rounded border-2 text-center text-sm font-medium"
+                                  style={{
+                                    borderColor: colors.brown,
+                                    color: colors.darkBrown,
+                                  }}
+                                  placeholder=""
+                                />
+                                {/* C-P-K buttons */}
+                                <button
+                                  onClick={() =>
+                                    handleMarkAttendanceClick(
+                                      studentId,
+                                      student.fullName,
+                                      "present"
+                                    )
+                                  }
+                                  disabled={isSaving}
+                                  className={`w-10 h-10 rounded text-sm font-bold transition-all ${
+                                    isSaving
+                                      ? "cursor-not-allowed opacity-50"
+                                      : "cursor-pointer hover:opacity-90"
+                                  } ${
+                                    currentStatus === "present"
+                                      ? "ring-2 ring-offset-1"
+                                      : ""
+                                  }`}
+                                  style={{
+                                    backgroundColor: currentStatus === "present" ? "#10B981" : "#D1FAE5",
+                                    color: currentStatus === "present" ? "white" : "#065F46",
+                                    ringColor: "#10B981",
+                                  }}
+                                >
+                                  C
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleMarkAttendanceClick(
+                                      studentId,
+                                      student.fullName,
+                                      "excused"
+                                    )
+                                  }
+                                  disabled={isSaving}
+                                  className={`w-10 h-10 rounded text-sm font-bold transition-all ${
+                                    isSaving
+                                      ? "cursor-not-allowed opacity-50"
+                                      : "cursor-pointer hover:opacity-90"
+                                  } ${
+                                    currentStatus === "excused"
+                                      ? "ring-2 ring-offset-1"
+                                      : ""
+                                  }`}
+                                  style={{
+                                    backgroundColor: currentStatus === "excused" ? "#F59E0B" : "#FEF3C7",
+                                    color: currentStatus === "excused" ? "white" : "#92400E",
+                                    ringColor: "#F59E0B",
+                                  }}
+                                >
+                                  P
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleMarkAttendanceClick(
+                                      studentId,
+                                      student.fullName,
+                                      "absent"
+                                    )
+                                  }
+                                  disabled={isSaving}
+                                  className={`w-10 h-10 rounded text-sm font-bold transition-all ${
+                                    isSaving
+                                      ? "cursor-not-allowed opacity-50"
+                                      : "cursor-pointer hover:opacity-90"
+                                  } ${
+                                    currentStatus === "absent"
+                                      ? "ring-2 ring-offset-1"
+                                      : ""
+                                  }`}
+                                  style={{
+                                    backgroundColor: currentStatus === "absent" ? "#DC2626" : "#FEE2E2",
+                                    color: currentStatus === "absent" ? "white" : "#991B1B",
+                                    ringColor: "#DC2626",
+                                  }}
+                                >
+                                  K
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
                     )}
                     {getStudentsForDate().regular.length === 0 &&
                       getStudentsForDate().makeup.length === 0 && (
                         <div
-                          className="text-center py-8 rounded-lg"
+                          className="text-center py-8 rounded-lg border"
                           style={{
                             backgroundColor: colors.light,
                             color: colors.brown,
+                            borderColor: "#E5E7EB",
                           }}
                         >
                           <div className="text-sm">
@@ -2461,6 +2322,203 @@ function ClassActionModal({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Right side - Class Ranking (UI bám sát mock) */}
+            <div
+              className="w-[420px] flex-shrink-0 p-6 overflow-y-auto"
+              style={{ backgroundColor: "white" }}
+            >
+              <div className="mb-5 text-center">
+                <div
+                  className="text-sm font-semibold tracking-wide"
+                  style={{ color: colors.darkBrown }}
+                >
+                  Top xếp hạng lớp
+                </div>
+              </div>
+
+              {(() => {
+                const ranking = getClassRanking();
+                const palette = [
+                  { bg: "#F8C9C9", border: "#E8A3A3" }, // 1 - pink
+                  { bg: "#F7E49A", border: "#E2C968" }, // 2 - yellow
+                  { bg: "#BFF0C5", border: "#8FD49B" }, // 3 - green
+                  { bg: "#A9D8FA", border: "#7BBCEB" }, // 4 - blue
+                  { bg: "#CFC6FF", border: "#A79BFF" }, // 5 - purple
+                ];
+
+                if (ranking.length === 0) {
+                  return (
+                    <div
+                      className="text-center py-10 rounded-2xl border-2"
+                      style={{ borderColor: colors.light, color: colors.brown }}
+                    >
+                      <div className="text-sm">Chưa có dữ liệu xếp hạng</div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    {/* Top 1 dạng card to */}
+                    {ranking[0] && (
+                      <div
+                        className="rounded-2xl border-2 p-4 mb-4"
+                        style={{
+                          backgroundColor: palette[0].bg,
+                          borderColor: palette[0].border,
+                        }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="text-[56px] leading-none font-black"
+                            style={{ color: colors.darkBrown }}
+                          >
+                            1
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className="font-semibold truncate"
+                              style={{ color: colors.darkBrown }}
+                            >
+                              {ranking[0].fullName}
+                            </div>
+                            <div
+                              className="text-xs mt-1"
+                              style={{ color: colors.brown }}
+                            >
+                              {ranking[0].competitionScore} điểm
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            {ranking[0].avatar ? (
+                              <img
+                                src={ranking[0].avatar}
+                                alt={ranking[0].fullName}
+                                className="w-14 h-14 rounded-full object-cover border-2"
+                                style={{ borderColor: "rgba(0,0,0,0.08)" }}
+                              />
+                            ) : (
+                              <div
+                                className="w-14 h-14 rounded-full border-2"
+                                style={{
+                                  borderColor: "rgba(0,0,0,0.08)",
+                                  backgroundColor: "rgba(255,255,255,0.6)",
+                                }}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Top 2-5 dạng thanh ngang + số thứ hạng bên trái */}
+                    <div className="space-y-3">
+                      {ranking.slice(1, 5).map((s, idx) => {
+                        const rank = idx + 2;
+                        const color = palette[rank - 1] || palette[4];
+                        return (
+                          <div
+                            key={s._id?.toString()}
+                            className="flex items-center gap-3"
+                          >
+                            <div
+                              className="w-8 text-[42px] leading-none font-black"
+                              style={{ color: colors.darkBrown }}
+                            >
+                              {rank}
+                            </div>
+                            <div
+                              className="flex-1 rounded-2xl border-2 px-4 py-3"
+                              style={{
+                                backgroundColor: color.bg,
+                                borderColor: color.border,
+                              }}
+                            >
+                              <div
+                                className="font-semibold truncate"
+                                style={{ color: colors.darkBrown }}
+                              >
+                                {s.fullName}
+                              </div>
+                              <div
+                                className="text-xs mt-0.5"
+                                style={{ color: colors.brown }}
+                              >
+                                {s.competitionScore} điểm
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Podium cards (top 1-5) — chỉ avatar + số hạng, size khác nhau như mock */}
+                    <div className="flex items-end justify-between gap-3 mt-6">
+                      {(() => {
+                        const top5 = ranking.slice(0, 5);
+
+                        // Kích thước theo mock: 1 to nhất, 2&3 bằng nhau, 4&5 bằng nhau (nhỏ nhất)
+                        const sizeByRank: Record<number, { w: number; h: number }> = {
+                          1: { w: 92, h: 170 },
+                          2: { w: 78, h: 150 },
+                          3: { w: 78, h: 150 },
+                          4: { w: 70, h: 138 },
+                          5: { w: 70, h: 138 },
+                        };
+
+                        return [4, 2, 1, 3, 5].map((rankNumber) => {
+                          const student = top5[rankNumber - 1]; // rank 1 -> index 0
+                          const color = palette[rankNumber - 1] || palette[4];
+                          const sz = sizeByRank[rankNumber];
+
+                          return (
+                            <div
+                              key={rankNumber}
+                              className="rounded-[26px] border-2 flex flex-col items-center justify-start pt-5 pb-4"
+                              style={{
+                                width: sz.w,
+                                height: sz.h,
+                                backgroundColor: color.bg,
+                                borderColor: color.border,
+                              }}
+                              title={student ? `${student.fullName} (#${rankNumber})` : `#${rankNumber}`}
+                            >
+                              {/* Avatar */}
+                              {student?.avatar ? (
+                                <img
+                                  src={student.avatar}
+                                  alt={student.fullName}
+                                  className="w-[56px] h-[56px] rounded-full object-cover border-2"
+                                  style={{ borderColor: "rgba(0,0,0,0.10)" }}
+                                />
+                              ) : (
+                                <div
+                                  className="w-[56px] h-[56px] rounded-full border-2"
+                                  style={{
+                                    borderColor: "rgba(0,0,0,0.10)",
+                                    backgroundColor: "rgba(255,255,255,0.55)",
+                                  }}
+                                />
+                              )}
+
+                              {/* Rank number */}
+                              <div
+                                className="mt-auto text-[44px] leading-none font-black"
+                                style={{ color: colors.darkBrown }}
+                              >
+                                {rankNumber}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+
+                  </>
+                );
+              })()}
             </div>
           </div>
         ) : (

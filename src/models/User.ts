@@ -6,6 +6,7 @@ export interface User {
   email?: string; // Optional, not used for login
   password: string; // Hashed
   role: 'teacher' | 'student';
+  avatar?: string;
   fullName: string;
   phone: string;
   dateOfBirth?: string;
@@ -28,6 +29,7 @@ export interface CreateUserData {
   email?: string; // Optional
   password: string;
   role: 'teacher' | 'student';
+  avatar?: string;
   fullName: string;
   phone: string;
   dateOfBirth?: string;

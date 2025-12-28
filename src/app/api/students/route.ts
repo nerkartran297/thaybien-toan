@@ -91,8 +91,11 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
+    const DEFAULT_AVATAR = "/avatars/default.png";
+
     const student: User = {
       ...data,
+      avatar: data.avatar ?? DEFAULT_AVATAR,
       password: hashedPassword,
       role: 'student',
       studentNumber: nextStudentNumber,
