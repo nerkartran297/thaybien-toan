@@ -7,6 +7,7 @@ import { User } from "@/models/User";
 import { Attendance, CreateAttendanceData } from "@/models/Attendance";
 import { useAuth } from "@/contexts/AuthContext";
 import { showError, showSuccess } from "@/lib/toast";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Color palette
 const colors = {
@@ -794,7 +795,7 @@ export default function WeekCalendar({
                             }
                             if (role === "teacher") {
                               // Always open attendance modal when clicking on class
-                              handleClassClick(cls, date, "attendance");
+                                handleClassClick(cls, date, "attendance");
                             }
                           }}
                           onMouseEnter={() => {
@@ -1307,7 +1308,7 @@ export default function WeekCalendar({
                             }
                             if (role === "teacher") {
                               // Always open attendance modal when clicking on class
-                              handleClassClick(cls, date, "attendance");
+                                handleClassClick(cls, date, "attendance");
                             }
                           }}
                           onMouseEnter={() => {
@@ -1624,6 +1625,18 @@ function ClassActionModal({
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
+  // RANKING UX: Track ranking changes for animations
+  type RankSnapshot = { id: string; rank: number; score: number };
+  type RankMeta = { 
+    prevRank: number | null; 
+    nextRank: number; 
+    moved: "up" | "down" | "same";
+    deltaScore: number;
+    flash: boolean;
+  };
+  const prevRankingRef = useRef<RankSnapshot[]>([]);
+  const [rankMetaById, setRankMetaById] = useState<Record<string, RankMeta>>({});
+
   const { user } = useAuth();
 
   const formatDateLocal = (d: Date): string => {
@@ -1876,13 +1889,13 @@ function ClassActionModal({
       if (!id || seen.has(id)) continue;
       seen.add(id);
 
-      const hasAbsence = propAttendanceRecords.some((att) => {
+        const hasAbsence = propAttendanceRecords.some((att) => {
         if (att.studentId?.toString() !== id) return false;
         if (att.classId?.toString() !== classData._id?.toString()) return false;
-        if (att.status !== "excused") return false;
-        const attDate = new Date(att.sessionDate);
-        attDate.setHours(0, 0, 0, 0);
-        const attDateStr = formatDateLocal(attDate);
+          if (att.status !== "excused") return false;
+          const attDate = new Date(att.sessionDate);
+          attDate.setHours(0, 0, 0, 0);
+          const attDateStr = formatDateLocal(attDate);
         return attDateStr === checkDateStr;
       });
 
@@ -1905,7 +1918,7 @@ function ClassActionModal({
     (studentId: string): AttendanceStatusOrNull => {
       const checkDate = new Date(date);
       checkDate.setHours(0, 0, 0, 0);
-      const checkDateStr = formatDateLocal(checkDate);
+          const checkDateStr = formatDateLocal(checkDate);
       const sid = studentId.toString();
 
       const attendance = attendanceRecords.find((att) => {
@@ -1914,8 +1927,8 @@ function ClassActionModal({
         const attDate = new Date(att.sessionDate);
         attDate.setHours(0, 0, 0, 0);
         const attDateStr = formatDateLocal(attDate);
-        return attDateStr === checkDateStr;
-      });
+          return attDateStr === checkDateStr;
+        });
 
       if (!attendance) return null;
       if (attendance.status === "present" || attendance.status === "absent" || attendance.status === "excused") {
@@ -1940,6 +1953,64 @@ function ClassActionModal({
 
     return withScores;
   }, [studentsForDate, studentProfiles]);
+
+  // RANKING UX: Compare rankings and calculate changes
+  useEffect(() => {
+    if (type !== "attendance" || role !== "teacher") return;
+
+    const currentSnapshot: RankSnapshot[] = classRanking.map((s, idx) => ({
+      id: s._id?.toString() || "",
+      rank: idx + 1,
+      score: s.currentSeasonScore || 0,
+    }));
+
+    const prevSnapshot = prevRankingRef.current;
+    if (prevSnapshot.length === 0) {
+      prevRankingRef.current = currentSnapshot;
+      return;
+    }
+
+    const newMeta: Record<string, RankMeta> = {};
+    
+    currentSnapshot.forEach((current) => {
+      const prev = prevSnapshot.find((p) => p.id === current.id);
+      const prevRank = prev ? prev.rank : null;
+      const nextRank = current.rank;
+      
+      let moved: "up" | "down" | "same" = "same";
+      if (prevRank !== null) {
+        if (nextRank < prevRank) moved = "up";
+        else if (nextRank > prevRank) moved = "down";
+      }
+      
+      const deltaScore = prev ? current.score - prev.score : 0;
+      const flash = moved !== "same" || deltaScore !== 0;
+
+      newMeta[current.id] = {
+        prevRank,
+        nextRank,
+        moved,
+        deltaScore,
+        flash,
+      };
+    });
+
+    setRankMetaById(newMeta);
+    prevRankingRef.current = currentSnapshot;
+
+    // Clear flash after 1200ms
+    const timer = setTimeout(() => {
+      setRankMetaById((prev) => {
+        const cleared: Record<string, RankMeta> = {};
+        Object.keys(prev).forEach((id) => {
+          cleared[id] = { ...prev[id], flash: false, deltaScore: 0 };
+        });
+        return cleared;
+      });
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [classRanking, type, role]);
 
   const scrollToStudent = useCallback((studentId: string) => {
     const el = rowRefs.current.get(studentId);
@@ -2000,12 +2071,49 @@ function ClassActionModal({
     }
   }, [classData._id, date, tempScores, tempAttendance, tempInputValues]);
 
+  // Load temporary data from localStorage when modal opens
+  useEffect(() => {
+    if (type === "attendance" && role === "teacher" && classData._id) {
+      const storageKey = `class_session_${classData._id?.toString()}_${date.toISOString().split('T')[0]}`;
+      try {
+        const savedData = localStorage.getItem(storageKey);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          
+          // Restore tempScores
+          if (parsed.tempScores && Object.keys(parsed.tempScores).length > 0) {
+            setTempScores(new Map(Object.entries(parsed.tempScores).map(([k, v]) => [k, Number(v)])));
+          }
+          
+          // Restore tempAttendance
+          if (parsed.tempAttendance && Object.keys(parsed.tempAttendance).length > 0) {
+            setTempAttendance(new Map(Object.entries(parsed.tempAttendance)));
+          }
+          
+          // Restore tempInputValues
+          if (parsed.tempInputValues && Object.keys(parsed.tempInputValues).length > 0) {
+            setTempInputValues(new Map(Object.entries(parsed.tempInputValues)));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading from localStorage:', error);
+      }
+    }
+  }, [type, role, classData._id, date]);
+
   // Save to localStorage whenever temp data changes
   useEffect(() => {
-    if (tempScores.size > 0 || tempAttendance.size > 0 || tempInputValues.size > 0) {
-      saveTempDataToStorage();
+    if (type === "attendance" && role === "teacher" && classData._id) {
+      // Only save if there's actual data to save
+      if (tempScores.size > 0 || tempAttendance.size > 0 || tempInputValues.size > 0) {
+        saveTempDataToStorage();
+      } else {
+        // If all temp data is cleared, also clear localStorage
+        const storageKey = `class_session_${classData._id?.toString()}_${date.toISOString().split('T')[0]}`;
+        localStorage.removeItem(storageKey);
+      }
     }
-  }, [tempScores, tempAttendance, tempInputValues, saveTempDataToStorage]);
+  }, [tempScores, tempAttendance, tempInputValues, saveTempDataToStorage, type, role, classData._id, date]);
 
   const handleMarkAttendance = (studentId: string, status: AttendanceStatus) => {
     // Chỉ lưu tạm thời, chưa lưu vào DB
@@ -2055,12 +2163,38 @@ function ClassActionModal({
       checkDate.setHours(0, 0, 0, 0);
       const dateStr = formatDateLocal(checkDate);
 
+      // CRITICAL: Refresh attendance records FIRST to get latest state from DB
+      // This ensures we compare against the actual current state in database
+      const refreshDateStr = formatDateLocal(checkDate);
+      const refreshResponse = await fetch(
+        `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}&_t=${Date.now()}`
+      );
+      let latestAttendanceRecords = attendanceRecords;
+      if (refreshResponse.ok) {
+        latestAttendanceRecords = await refreshResponse.json();
+        // Update state immediately for next calculation
+        setAttendanceRecords(latestAttendanceRecords);
+        console.log(`[REFRESH] Refreshed ${latestAttendanceRecords.length} attendance records from DB`);
+      } else {
+        console.warn(`[REFRESH] Failed to refresh attendance records, using cached data`);
+      }
+
       // Helper function to get attendance points
       const getAttendancePoints = (status: AttendanceStatusOrNull): number => {
         if (status === "present") return 100;
         if (status === "excused") return 50;
         if (status === "absent") return 0;
         return 0;
+      };
+
+      // Helper function to normalize attendance status for comparison
+      const normalizeStatus = (status: string | null | undefined): AttendanceStatusOrNull => {
+        if (!status) return null;
+        const normalized = status.toLowerCase();
+        if (normalized === "present") return "present";
+        if (normalized === "excused") return "excused";
+        if (normalized === "absent") return "absent";
+        return null;
       };
 
       // Process all students
@@ -2070,46 +2204,78 @@ function ClassActionModal({
         const baseScore = studentProfiles.get(studentId)?.currentSeasonScore || 0;
         const pointsToAdd = tempScore !== undefined ? tempScore - baseScore : 0;
         
-        // Get attendance status from tempAttendance (new) or existing attendance (old)
-        const newAttendanceStatus = tempAttendance.get(studentId) || null;
+        // Get attendance status from tempAttendance (new) - this is what user wants to set
+        // CRITICAL: tempAttendance only has values if user clicked attendance buttons in THIS session
+        // If tempAttendance doesn't have a value, it means user didn't change anything
+        const newAttendanceStatusRaw = tempAttendance.get(studentId);
+        const hasTempAttendance = tempAttendance.has(studentId); // Check if key exists in Map
+        const newAttendanceStatus = newAttendanceStatusRaw ? normalizeStatus(newAttendanceStatusRaw) : null;
         
-        // Get existing attendance from database
-        const existingAttendance = attendanceRecords.find((att) => {
+        // Get existing attendance from LATEST database records - this is what's currently in DB
+        const existingAttendance = latestAttendanceRecords.find((att) => {
           if (att.studentId.toString() !== studentId) return false;
           const attDate = new Date(att.sessionDate);
           attDate.setHours(0, 0, 0, 0);
           return attDate.getTime() === checkDate.getTime();
         });
-        
-        const oldAttendanceStatus = existingAttendance?.status as AttendanceStatusOrNull || null;
+
+        const oldAttendanceStatusRaw = existingAttendance?.status;
+        const oldAttendanceStatus = oldAttendanceStatusRaw ? normalizeStatus(oldAttendanceStatusRaw as AttendanceStatusOrNull) : null;
         
         // Calculate attendance points difference
-        // If status changed: subtract old points, add new points
+        // CRITICAL LOGIC:
+        // 1. If tempAttendance has NO value for this student → user didn't change anything → no points change
+        // 2. If tempAttendance has a value → user clicked attendance button → calculate diff
+        // 3. If newStatus === oldStatus → no change → no points change
         let attendancePointsDiff = 0;
-        if (newAttendanceStatus !== null && newAttendanceStatus !== oldAttendanceStatus) {
-          const oldPoints = getAttendancePoints(oldAttendanceStatus);
-          const newPoints = getAttendancePoints(newAttendanceStatus);
-          attendancePointsDiff = newPoints - oldPoints; // Can be negative if changing from present to absent
-        } else if (newAttendanceStatus === null && oldAttendanceStatus !== null) {
-          // Removing attendance (shouldn't happen, but handle it)
-          const oldPoints = getAttendancePoints(oldAttendanceStatus);
-          attendancePointsDiff = -oldPoints;
-        } else if (newAttendanceStatus !== null && oldAttendanceStatus === null) {
-          // Adding new attendance
-          const newPoints = getAttendancePoints(newAttendanceStatus);
-          attendancePointsDiff = newPoints;
+        let statusChanged = false;
+        
+        // Only process if user actually interacted with attendance (tempAttendance has value)
+        if (hasTempAttendance) {
+          // User clicked attendance button, so there might be a change
+          statusChanged = newAttendanceStatus !== oldAttendanceStatus;
+          
+          if (statusChanged) {
+            if (newAttendanceStatus !== null) {
+              // Adding new attendance or changing existing one
+              const oldPoints = getAttendancePoints(oldAttendanceStatus);
+              const newPoints = getAttendancePoints(newAttendanceStatus);
+              attendancePointsDiff = newPoints - oldPoints;
+              console.log(`[ATTENDANCE CHANGE] Student ${studentId}: ${oldAttendanceStatus} → ${newAttendanceStatus}, points: ${oldPoints} → ${newPoints}, diff: ${attendancePointsDiff}`);
+            } else if (oldAttendanceStatus !== null) {
+              // User explicitly removed attendance (clicked to unselect)
+              const oldPoints = getAttendancePoints(oldAttendanceStatus);
+              attendancePointsDiff = -oldPoints;
+              console.log(`[ATTENDANCE REMOVE] Student ${studentId}: Removing ${oldAttendanceStatus}, points: -${oldPoints}`);
+            }
+          } else {
+            // User clicked but status is same as DB (no change)
+            console.log(`[ATTENDANCE NO CHANGE] Student ${studentId}: ${oldAttendanceStatus} === ${newAttendanceStatus}, attendancePointsDiff = 0`);
+          }
+        } else {
+          // User didn't interact with attendance in this session → no change
+          console.log(`[ATTENDANCE NO INTERACTION] Student ${studentId}: No tempAttendance value, keeping ${oldAttendanceStatus}, attendancePointsDiff = 0`);
         }
-        // If status unchanged, attendancePointsDiff = 0
 
-        console.log(`Student ${studentId}: baseScore=${baseScore}, tempScore=${tempScore}, pointsToAdd=${pointsToAdd}, oldAttendance=${oldAttendanceStatus}, newAttendance=${newAttendanceStatus}, attendancePointsDiff=${attendancePointsDiff}`);
+        console.log(`[FINALIZE] Student ${studentId}: baseScore=${baseScore}, tempScore=${tempScore}, pointsToAdd=${pointsToAdd}`);
+        console.log(`[FINALIZE]   oldAttendance=${oldAttendanceStatus} (raw: ${oldAttendanceStatusRaw}), newAttendance=${newAttendanceStatus} (raw: ${newAttendanceStatusRaw}), statusChanged=${statusChanged}, attendancePointsDiff=${attendancePointsDiff}`);
+
+        // Determine final attendance status to save
+        // CRITICAL: Only save if user actually interacted with attendance (hasTempAttendance === true)
+        // If user didn't interact, keep existing status and don't save
+        const finalAttendanceStatus = hasTempAttendance 
+          ? (newAttendanceStatus !== null ? newAttendanceStatus : oldAttendanceStatus)
+          : oldAttendanceStatus; // If no interaction, keep existing
+        const hasAttendanceChange = hasTempAttendance && statusChanged; // Only true if user interacted AND status changed
 
         return {
           studentId,
           pointsToAdd,
-          attendanceStatus: newAttendanceStatus !== null ? newAttendanceStatus : oldAttendanceStatus,
+          attendanceStatus: finalAttendanceStatus,
           attendancePointsDiff,
           oldAttendanceStatus,
           existingAttendanceId: existingAttendance?._id?.toString(),
+          hasAttendanceChange, // Flag to indicate if attendance actually changed
         };
       });
 
@@ -2124,7 +2290,7 @@ function ClassActionModal({
             console.log(`Adding ${totalPoints} points to student ${u.studentId} (regular: ${u.pointsToAdd}, attendance diff: ${u.attendancePointsDiff})`);
             const response = await fetch(`/api/students/${u.studentId}/add-points`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ points: totalPoints }),
             });
 
@@ -2146,13 +2312,16 @@ function ClassActionModal({
       await Promise.all(pointPromises.filter(p => p !== null));
 
       // Save attendance records (only if status changed or is new)
+      // CRITICAL: Only save if there's an ACTUAL change from what's in DB
       const attendancePromises = updates
         .filter((u) => {
-          // Only save if:
-          // 1. New attendance status is set (from tempAttendance)
-          // 2. Or existing attendance status exists (to keep it)
-          // But only update if status actually changed
-          return u.attendanceStatus !== null && u.attendanceStatus !== u.oldAttendanceStatus;
+          // Use the hasAttendanceChange flag to ensure we only save when there's a real change
+          // If new === old, it means user didn't change anything, so don't save again
+          const hasStatusChange = (u as any).hasAttendanceChange === true;
+          if (!hasStatusChange) {
+            console.log(`[ATTENDANCE] Student ${u.studentId}: No status change (${u.oldAttendanceStatus} → ${u.attendanceStatus}), skipping save`);
+          }
+          return hasStatusChange;
         })
         .map(async (u) => {
           try {
@@ -2166,29 +2335,29 @@ function ClassActionModal({
               });
 
               if (!response.ok) {
-                const error = await response.json();
+          const error = await response.json();
                 throw new Error(error?.error || "Lỗi cập nhật điểm danh");
-              }
+        }
 
               return await response.json();
-            } else {
-              // Create new attendance
+      } else {
+        // Create new attendance
               if (!user?._id) {
                 throw new Error("Không thể xác định giáo viên");
               }
-              const attendanceData: CreateAttendanceData = {
+        const attendanceData: CreateAttendanceData = {
                 studentId: u.studentId,
-                classId: classData._id?.toString(),
+          classId: classData._id?.toString(),
                 sessionDate: dateStr,
                 status: u.attendanceStatus!,
-                markedBy: user._id.toString(),
-              };
+          markedBy: user._id.toString(),
+        };
 
-              const response = await fetch("/api/attendance", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(attendanceData),
-              });
+        const response = await fetch("/api/attendance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(attendanceData),
+        });
 
               if (!response.ok) {
                 const error = await response.json();
@@ -2208,13 +2377,13 @@ function ClassActionModal({
       // Wait a bit to ensure database is updated
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Refresh attendance records
-      const refreshDateStr = formatDateLocal(checkDate);
-      const refreshResponse = await fetch(
-        `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}&_t=${Date.now()}`
+      // Refresh attendance records again to get final state
+      const finalRefreshDateStr = formatDateLocal(checkDate);
+      const finalRefreshResponse = await fetch(
+        `/api/attendance?classId=${classData._id}&sessionDate=${finalRefreshDateStr}&_t=${Date.now()}`
       );
-      if (refreshResponse.ok) {
-        setAttendanceRecords(await refreshResponse.json());
+      if (finalRefreshResponse.ok) {
+        setAttendanceRecords(await finalRefreshResponse.json());
       }
 
       // Refresh student profiles to get updated scores
@@ -2339,13 +2508,13 @@ function ClassActionModal({
               {/* Vùng trái header - flex-1 với border-r, padding match với body */}
               <div className="flex-1 flex items-center px-6 border-r" style={{ borderColor: colors.light }}>
                 <div className="flex items-center gap-3 flex-1">
-                  <button
+          <button
                     onClick={requestClose}
                     className="text-gray-600 hover:text-gray-800 transition-colors text-xl cursor-pointer hover:scale-110"
                     aria-label="Quay lại"
                   >
                     ←
-                  </button>
+          </button>
                   <h3 className="text-xl font-bold" style={{ color: colors.darkBrown }}>
                     Điểm danh ngày{" "}
                     {date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
@@ -2354,7 +2523,7 @@ function ClassActionModal({
                     <div className="ml-3 flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
                       <Spinner />
                       <span>Đang lưu...</span>
-                    </div>
+        </div>
                   )}
                 </div>
                 <div className="flex items-center gap-3 ml-auto">
@@ -2363,7 +2532,7 @@ function ClassActionModal({
                     <button
                       onClick={() => setShowSortDropdown(!showSortDropdown)}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 whitespace-nowrap cursor-pointer hover:bg-gray-50"
-                      style={{
+              style={{
                         backgroundColor: "transparent",
                         color: colors.darkBrown,
                       }}
@@ -2374,8 +2543,8 @@ function ClassActionModal({
                         viewBox="0 0 16 16"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
-                        style={{ color: colors.darkBrown }}
-                      >
+                style={{ color: colors.darkBrown }}
+              >
                         <path
                           d="M2 4h12M4 8h8M6 12h4"
                           stroke="currentColor"
@@ -2396,8 +2565,8 @@ function ClassActionModal({
                             setShowSortDropdown(false);
                           }}
                           className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors rounded-t-lg cursor-pointer"
-                          style={{ color: colors.darkBrown }}
-                        >
+                    style={{ color: colors.darkBrown }}
+                  >
                           Điểm tăng dần
                         </button>
                         <button
@@ -2406,13 +2575,13 @@ function ClassActionModal({
                             setShowSortDropdown(false);
                           }}
                           className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors rounded-b-lg cursor-pointer"
-                          style={{ color: colors.darkBrown }}
-                        >
+                    style={{ color: colors.darkBrown }}
+                  >
                           Điểm giảm dần
                         </button>
-                      </div>
-                    )}
                   </div>
+                    )}
+                </div>
                   <button
                     onClick={handleFinalizeSession}
                     disabled={isFinalizing}
@@ -2425,15 +2594,15 @@ function ClassActionModal({
                   >
                     {isFinalizing ? "Đang tổng kết..." : "Tổng kết"}
                   </button>
-                </div>
-              </div>
+                  </div>
+                  </div>
               {/* Vùng phải header - canh với cột ranking, padding match với body */}
               <div className="flex-shrink-0 flex items-center justify-center p-4" style={{ width: `${rightSideWidth}px` }}>
                 <div className="text-lg font-semibold tracking-wide" style={{ color: colors.darkBrown }}>
                   Top xếp hạng lớp
                 </div>
-              </div>
-            </div>
+                  </div>
+                  </div>
           ) : (
             <>
               <h3 className="text-2xl font-bold" style={{ color: colors.darkBrown }}>
@@ -2449,7 +2618,7 @@ function ClassActionModal({
               </button>
             </>
           )}
-        </div>
+            </div>
 
         {type === "attendance" && role === "teacher" ? (
           <div className="flex-1 overflow-hidden flex" ref={resizeRef}>
@@ -2458,7 +2627,7 @@ function ClassActionModal({
               {loadingStudents ? (
                 <div className="flex-1 overflow-y-auto px-6 pb-6">
                   <div className="space-y-3 animate-pulse mt-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
+                      {[1, 2, 3, 4, 5].map((i) => (
                       <div key={i} className="h-24 rounded-2xl border" style={{ backgroundColor: colors.light }} />
                     ))}
                   </div>
@@ -2467,13 +2636,13 @@ function ClassActionModal({
                 <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
                   <div className="space-y-3">
                     {studentsForDate.map((student) => {
-                      const studentId = student._id?.toString() || "";
+                              const studentId = student._id?.toString() || "";
                       const currentStatus = getAttendanceStatus(studentId);
                       const tempStatus = tempAttendance.get(studentId);
                       const pending = pendingStatusByStudent[studentId] ?? null;
                       const displayedStatus = tempStatus ?? pending ?? currentStatus;
 
-                      const isSaving = savingAttendance === studentId;
+                              const isSaving = savingAttendance === studentId;
                       const profile = studentProfiles.get(studentId);
                       const currentSeasonScore = profile?.currentSeasonScore || 0;
 
@@ -2482,14 +2651,14 @@ function ClassActionModal({
                       const tint = statusTint(displayedStatus);
                       const dimOthers = displayedStatus !== null;
 
-                      return (
-                        <div
-                          key={studentId}
+                              return (
+                                <div
+                                  key={studentId}
                           ref={(el) => {
                             rowRefs.current.set(studentId, el);
                           }}
                           className="flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md"
-                          style={{
+                                  style={{
                             backgroundColor: tint.bg,
                             borderColor: highlighted ? colors.darkBrown : tint.border,
                             boxShadow: highlighted ? "0 10px 22px rgba(0,0,0,0.10)" : undefined,
@@ -2520,14 +2689,14 @@ function ClassActionModal({
                               ) : (
                                 <div
                                   className="w-16 h-16 rounded-full border-2 flex items-center justify-center font-bold transition-all cursor-pointer hover:scale-110 hover:shadow-md"
-                                  style={{
+                                      style={{
                                     backgroundColor: "rgba(255,255,255,0.65)",
                                     borderColor: "rgba(0,0,0,0.10)",
                                     color: colors.darkBrown,
-                                  }}
-                                >
+                                      }}
+                                    >
                                   {getInitials(student.fullName)}
-                                </div>
+                                    </div>
                               )}
 
                               {isSaving && (
@@ -2546,7 +2715,7 @@ function ClassActionModal({
                                   aria-label="Đã lưu"
                                 >
                                   ✓
-                                </div>
+                                  </div>
                               )}
                             </div>
 
@@ -2584,12 +2753,12 @@ function ClassActionModal({
                           </div>
 
                           {/* Right actions */}
-                          {type === "attendance" && (
+                                  {type === "attendance" && (
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <input
                                 type="text"
                                 className="w-10 h-10 rounded-full border-2 text-center text-sm font-semibold transition-all cursor-text hover:border-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1"
-                                style={{ 
+                                        style={{
                                   borderColor: colors.brown, 
                                   color: colors.darkBrown, 
                                   backgroundColor: "white",
@@ -2605,7 +2774,7 @@ function ClassActionModal({
                               <input
                                 type="text"
                                 className="w-12 h-10 rounded border-2 text-center text-sm font-semibold transition-all cursor-text hover:border-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1"
-                                style={{ 
+                                        style={{
                                   borderColor: colors.brown, 
                                   color: colors.darkBrown, 
                                   backgroundColor: "white",
@@ -2613,17 +2782,29 @@ function ClassActionModal({
                                 aria-label="Input chữ nhật"
                                 value={tempInputValues.get(studentId) || ""}
                                 onChange={(e) => {
-                                  setTempInputValues((prev) => {
-                                    const next = new Map(prev);
-                                    next.set(studentId, e.target.value);
-                                    return next;
-                                  });
+                                  // Chỉ cho phép nhập số, dấu trừ ở đầu, và dấu chấm (cho số thập phân)
+                                  const value = e.target.value;
+                                  // Regex: cho phép số âm, số dương, và số thập phân
+                                  // ^-? - dấu trừ ở đầu (tùy chọn)
+                                  // \d* - các chữ số (có thể không có)
+                                  // (\.\d*)? - dấu chấm và các chữ số sau dấu chấm (tùy chọn)
+                                  const validPattern = /^-?\d*(\.\d*)?$/;
+                                  
+                                  // Cho phép chuỗi rỗng hoặc chuỗi chỉ có dấu trừ (đang nhập)
+                                  if (value === "" || value === "-" || validPattern.test(value)) {
+                                    setTempInputValues((prev) => {
+                                      const next = new Map(prev);
+                                      next.set(studentId, value);
+                                      return next;
+                                    });
+                                  }
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     const value = e.currentTarget.value.trim();
                                     const points = parseFloat(value);
-                                    if (!isNaN(points) && points > 0) {
+                                    // Cho phép số âm, số dương, và 0
+                                    if (!isNaN(points) && value !== "" && value !== "-") {
                                       handleAddTempPoints(studentId, points);
                                       setTempInputValues((prev) => {
                                         const next = new Map(prev);
@@ -2672,10 +2853,10 @@ function ClassActionModal({
                                 bg={{ on: "#DC2626", off: "#FEE2E2" }}
                                 fg={{ on: "white", off: "#991B1B" }}
                               />
-                            </div>
-                          )}
-                        </div>
-                      );
+                                    </div>
+                                  )}
+                                </div>
+                              );
                     })}
 
                     {studentsForDate.length === 0 && (
@@ -2684,10 +2865,10 @@ function ClassActionModal({
                       >
                         <div className="text-sm">Chưa có học viên đăng ký</div>
                       </div>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Resizer handle */}
@@ -2713,7 +2894,7 @@ function ClassActionModal({
               }}
             >
               <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-4" />
-            </div>
+                        </div>
 
             {/* Right side - Ranking */}
             <div className="flex-shrink-0 p-4 overflow-y-auto" style={{ backgroundColor: "white", width: `${rightSideWidth}px` }}>
@@ -2724,28 +2905,39 @@ function ClassActionModal({
               ) : (
                 <>
                   {/* Avatar Ranking */}
-                  <div className="mb-6">
+                  <div className="mb-15">
                     {(() => {
                       const top5 = classRanking.slice(0, 5);
                       
                       // Size cho từng rank
                       const sizeByRank: Record<number, number> = {
-                        1: 100, // To nhất
-                        2: 75,  // Nhỏ hơn 1, to hơn 4-5
-                        3: 75,  // Nhỏ hơn 1, to hơn 4-5
-                        4: 60,  // Nhỏ nhất
-                        5: 60,  // Nhỏ nhất
+                        1: 120, // To nhất
+                        2: 90,  // Nhỏ hơn 1, to hơn 4-5
+                        3: 90,  // Nhỏ hơn 1, to hơn 4-5
+                        4: 75,  // Nhỏ nhất
+                        5: 75,  // Nhỏ nhất
                       };
 
                       const renderAvatar = (rankNumber: number, size: number) => {
                         const student = top5[rankNumber - 1];
                         const id = student?._id?.toString() || "";
                         const color = palette[rankNumber - 1] || palette[4];
+                        const meta = id ? rankMetaById[id] : null;
+                        const ringClass = meta?.flash
+                          ? meta.moved === "up"
+                            ? "ring-2 ring-emerald-400/60"
+                            : meta.moved === "down"
+                            ? "ring-2 ring-rose-400/60"
+                            : "ring-2 ring-black/10"
+                          : "";
 
-                        return (
-                          <div
-                            key={rankNumber}
-                            className="relative cursor-pointer transition-transform hover:scale-105"
+                            return (
+                          <motion.div
+                            key={id || `rank-${rankNumber}`}
+                            layout
+                            initial={false}
+                            transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                            className={`relative cursor-pointer transition-transform hover:scale-105 ${ringClass}`}
                             title={student ? `${student.fullName} (#${rankNumber})` : `#${rankNumber}`}
                             onMouseEnter={() => {
                               if (!id) return;
@@ -2786,7 +2978,7 @@ function ClassActionModal({
                             {/* Badge số */}
                             <div
                               className="absolute left-1/2 -translate-x-1/2 rounded-full flex items-center justify-center font-black text-white"
-                              style={{
+                                    style={{
                                 bottom: -(size * 0.35) / 2,
                                 width: size * 0.35,
                                 height: size * 0.35,
@@ -2797,8 +2989,8 @@ function ClassActionModal({
                               }}
                             >
                               {rankNumber}
-                            </div>
-                          </div>
+                                  </div>
+                          </motion.div>
                         );
                       };
 
@@ -2809,7 +3001,7 @@ function ClassActionModal({
                             {renderAvatar(2, sizeByRank[2])}
                             {renderAvatar(1, sizeByRank[1])}
                             {renderAvatar(3, sizeByRank[3])}
-                          </div>
+                                </div>
                           
                           {/* Hàng dưới: Top 4, Top 5 */}
                           <div className="flex items-center justify-center gap-8">
@@ -2821,50 +3013,38 @@ function ClassActionModal({
                     })()}
                   </div>
 
-                  {classRanking[0] && (
-                    <div
-                      className="rounded-2xl border-2 p-3 mb-4 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg"
-                      style={{ 
-                        backgroundColor: palette[0].bg, 
-                        borderColor: palette[0].border,
-                      }}
-                      onMouseEnter={(e) => {
-                        const id = classRanking[0]._id?.toString() || "";
-                        if (!id) return;
-                        setHighlightStudentId(id);
-                        scrollToStudent(id);
-                        e.currentTarget.style.borderColor = palette[0].border;
-                        e.currentTarget.style.boxShadow = `0 8px 16px rgba(0,0,0,0.15)`;
-                      }}
-                      onMouseLeave={(e) => {
-                        setHighlightStudentId(null);
-                        e.currentTarget.style.borderColor = palette[0].border;
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                      <div className="flex items-center gap-7">
-                        <div className="text-[44px] leading-none font-black" style={{ color: colors.darkBrown }}>
-                          1
-                        </div>
-                        <div className="text-xl flex-1 min-w-0 font-semibold truncate" style={{ color: colors.darkBrown }}>
-                          {classRanking[0].fullName}
-                        </div>
-                        <div className="flex-shrink-0 text-sm font-medium" style={{ color: colors.darkBrown }}>
-                          {classRanking[0].currentSeasonScore}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {classRanking[0] && (() => {
+                      const id = classRanking[0]._id?.toString() || "";
+                      const meta = id ? rankMetaById[id] : null;
+                      const ringClass = meta?.flash
+                        ? meta.moved === "up"
+                          ? "ring-2 ring-emerald-400/60"
+                          : meta.moved === "down"
+                          ? "ring-2 ring-rose-400/60"
+                          : "ring-2 ring-black/10"
+                        : "";
+                      const badge = meta?.flash && meta.moved !== "same" ? (
+                        <span className={`text-xs font-bold ml-2 ${meta.moved === "up" ? "text-emerald-600" : "text-rose-600"}`}>
+                          {meta.moved === "up" ? "▲" : "▼"}
+                        </span>
+                      ) : meta?.flash && meta.deltaScore !== 0 ? (
+                        <span className="text-xs font-bold ml-2 text-gray-600">
+                          {meta.deltaScore > 0 ? "+" : ""}{meta.deltaScore}
+                        </span>
+                      ) : null;
 
-                  <div className="space-y-3">
-                    {classRanking.slice(1, 5).map((s, idx) => {
-                      const rank = idx + 2;
-                      const color = palette[rank - 1] || palette[4];
-                      const id = s._id?.toString() || "";
                       return (
-                        <div
+                        <motion.div
                           key={id}
-                          className="flex items-center gap-3 cursor-pointer transition-all"
+                          layout
+                          initial={false}
+                          transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                          className={`rounded-2xl border-2 p-3 mb-4 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg ${ringClass}`}
+                                      style={{
+                            backgroundColor: palette[0].bg, 
+                            borderColor: palette[0].border,
+                          }}
                           onMouseEnter={() => {
                             if (!id) return;
                             setHighlightStudentId(id);
@@ -2872,32 +3052,84 @@ function ClassActionModal({
                           }}
                           onMouseLeave={() => setHighlightStudentId(null)}
                         >
-                          <div className="ml-3 w-8 text-[42px] leading-none font-black transition-all" style={{ color: colors.darkBrown }}>
-                            {rank}
-                          </div>
-                          <div 
-                            className="ml-[-10px] flex-1 rounded-2xl border-2 px-3 py-2 flex items-center justify-between transition-all hover:scale-[1.02] hover:shadow-md"
-                            style={{ backgroundColor: color.bg, borderColor: color.border }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = color.border;
-                              e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.12)`;
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = color.border;
-                              e.currentTarget.style.boxShadow = 'none';
-                            }}
-                          >
-                            <div className="font-semibold truncate" style={{ color: colors.darkBrown }}>
-                              {s.fullName}
-                            </div>
-                            <div className="flex-shrink-0 text-sm font-medium ml-3" style={{ color: colors.darkBrown }}>
-                              {s.currentSeasonScore}
-                            </div>
-                          </div>
+                          <div className="flex items-center gap-7">
+                            <div className="text-[44px] leading-none font-black" style={{ color: colors.darkBrown }}>
+                              1
+                                  </div>
+                            <div className="text-xl flex-1 min-w-0 font-semibold truncate flex items-center" style={{ color: colors.darkBrown }}>
+                              {classRanking[0].fullName}
+                              {badge}
+                              </div>
+                            <div className="flex-shrink-0 text-sm font-medium" style={{ color: colors.darkBrown }}>
+                              {classRanking[0].currentSeasonScore}
                         </div>
+                      </div>
+                        </motion.div>
                       );
-                    })}
+                    })()}
+                  </AnimatePresence>
+
+                  <AnimatePresence initial={false}>
+                    <div className="space-y-3">
+                      {classRanking.slice(1, 5).map((s, idx) => {
+                        const rank = idx + 2;
+                        const color = palette[rank - 1] || palette[4];
+                        const id = s._id?.toString() || "";
+                        const meta = id ? rankMetaById[id] : null;
+                        const ringClass = meta?.flash
+                          ? meta.moved === "up"
+                            ? "ring-2 ring-emerald-400/60"
+                            : meta.moved === "down"
+                            ? "ring-2 ring-rose-400/60"
+                            : "ring-2 ring-black/10"
+                          : "";
+                        const badge = meta?.flash && meta.moved !== "same" ? (
+                          <span className={`text-xs font-bold ml-2 ${meta.moved === "up" ? "text-emerald-600" : "text-rose-600"}`}>
+                            {meta.moved === "up" ? "▲" : "▼"}
+                          </span>
+                        ) : meta?.flash && meta.deltaScore !== 0 ? (
+                          <span className="text-xs font-bold ml-2 text-gray-600">
+                            {meta.deltaScore > 0 ? "+" : ""}{meta.deltaScore}
+                          </span>
+                        ) : null;
+
+                        return (
+                          <motion.div
+                            key={id}
+                            layout
+                            initial={false}
+                            transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                            className="flex items-center gap-3 cursor-pointer transition-all"
+                            onMouseEnter={() => {
+                              if (!id) return;
+                              setHighlightStudentId(id);
+                              scrollToStudent(id);
+                            }}
+                            onMouseLeave={() => setHighlightStudentId(null)}
+                          >
+                            <div className="ml-3 w-8 text-[42px] leading-none font-black transition-all" style={{ color: colors.darkBrown }}>
+                              {rank}
+                          </div>
+                            <motion.div 
+                              layout
+                              initial={false}
+                              transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                              className={`ml-[-10px] flex-1 rounded-2xl border-2 px-3 py-2 flex items-center justify-between transition-all hover:scale-[1.02] hover:shadow-md ${ringClass}`}
+                              style={{ backgroundColor: color.bg, borderColor: color.border }}
+                            >
+                              <div className="font-semibold truncate flex items-center" style={{ color: colors.darkBrown }}>
+                                {s.fullName}
+                                {badge}
+                        </div>
+                              <div className="flex-shrink-0 text-sm font-medium ml-3" style={{ color: colors.darkBrown }}>
+                                {s.currentSeasonScore}
                   </div>
+                            </motion.div>
+                          </motion.div>
+                        );
+                      })}
+                </div>
+                  </AnimatePresence>
 
                 </>
               )}
@@ -2999,14 +3231,14 @@ function ClassActionModal({
           </div>
           <div className="flex gap-3">
             {type === "attendance" && role === "teacher" ? (
-              <button
+            <button
                 onClick={requestClose}
                 className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
                 style={{ backgroundColor: colors.brown }}
-              >
-                Đóng
-              </button>
-            ) : (
+            >
+              Đóng
+            </button>
+          ) : (
               <button
                 onClick={handleSubmit}
                 className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3015,7 +3247,7 @@ function ClassActionModal({
               >
                 {type === "cancel" || type === "absence" || type === "makeup" ? "Xác nhận" : "Đóng"}
               </button>
-            )}
+          )}
           </div>
         </div>
       </div>
