@@ -25,15 +25,24 @@ export async function GET(
     const { password: _password, ...studentWithoutPassword } = student;
     console.log(`Password hash: ${_password?.substring(0, 10)}...`);
 
-    // Get student profile for grade and group
+    // Get student profile for grade, group, gold, and scores
     const profile = await db
       .collection('student_profiles')
       .findOne({ userId: student._id });
+
+    // Get current season score (last element in seasonalScores array)
+    const seasonalScores = profile?.seasonalScores || [0];
+    const currentSeasonScore = seasonalScores[seasonalScores.length - 1] || 0;
 
     return NextResponse.json({
       ...studentWithoutPassword,
       grade: profile?.grade || null,
       group: profile?.group || null,
+      gold: profile?.gold || 0,
+      lifetimeScore: profile?.lifetimeScore || 0,
+      seasonalScores: seasonalScores,
+      currentSeason: profile?.currentSeason || 1,
+      currentSeasonScore: currentSeasonScore, // For convenience
     });
   } catch (error) {
     console.error('Error fetching student:', error);
@@ -158,9 +167,18 @@ export async function PATCH(
       .collection('student_profiles')
       .findOne({ userId: new ObjectId(id) });
 
+    // Get current season score (last element in seasonalScores array)
+    const seasonalScores = profile?.seasonalScores || [0];
+    const currentSeasonScore = seasonalScores[seasonalScores.length - 1] || 0;
+
     return NextResponse.json({
       grade: profile?.grade || null,
       group: profile?.group || null,
+      gold: profile?.gold || 0,
+      lifetimeScore: profile?.lifetimeScore || 0,
+      seasonalScores: seasonalScores,
+      currentSeason: profile?.currentSeason || 1,
+      currentSeasonScore: currentSeasonScore,
     });
   } catch (error) {
     console.error('Error updating student profile:', error);

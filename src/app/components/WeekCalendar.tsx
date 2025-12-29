@@ -1596,8 +1596,22 @@ function ClassActionModal({
   const rowRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
   const [studentProfiles, setStudentProfiles] = useState<
-    Map<string, { competitionScore: number; rank?: number }>
+    Map<string, { 
+      currentSeasonScore: number; 
+      lifetimeScore: number; 
+      gold: number;
+      gradeRank: number | null;
+      gradeTotal: number;
+      globalRank: number | null;
+      globalTotal: number;
+      rank?: number;
+    }>
   >(new Map());
+
+  // Temporary scores and attendance (chưa lưu vào DB)
+  const [tempScores, setTempScores] = useState<Map<string, number>>(new Map()); // Tổng điểm đã cộng tạm thời cho mỗi học sinh
+  const [tempAttendance, setTempAttendance] = useState<Map<string, AttendanceStatusOrNull>>(new Map()); // Điểm danh tạm thời
+  const [tempInputValues, setTempInputValues] = useState<Map<string, string>>(new Map()); // Giá trị trong input hình chữ nhật
 
   // Resizable sidebar state
   const [rightSideWidth, setRightSideWidth] = useState(420); // Default width
@@ -1700,12 +1714,68 @@ function ClassActionModal({
           const studentData = await Promise.all(studentPromises);
           setStudents(studentData);
 
-          // Placeholder profiles (logic later)
-          const profileMap = new Map<string, { competitionScore: number; rank?: number }>();
-          studentData.forEach((s: User) => {
+          // Fetch student profiles with scores and rankings
+          const profileMap = new Map<string, { 
+            currentSeasonScore: number; 
+            lifetimeScore: number;
+            gold: number;
+            gradeRank: number | null;
+            gradeTotal: number;
+            globalRank: number | null;
+            globalTotal: number;
+            rank?: number;
+          }>();
+          
+          for (const s of studentData) {
             const id = s._id?.toString();
-            if (id) profileMap.set(id, { competitionScore: 0, rank: undefined });
-          });
+            if (!id) continue;
+            
+            try {
+              // Fetch profile data
+              const profileRes = await fetch(`/api/students/${id}`);
+              let profileData: any = {};
+              if (profileRes.ok) {
+                profileData = await profileRes.json();
+              }
+
+              // Fetch ranking data
+              const rankingRes = await fetch(`/api/students/ranking?studentId=${id}`);
+              let rankingData: any = {
+                gradeRank: null,
+                gradeTotal: 0,
+                globalRank: null,
+                globalTotal: 0,
+                currentSeasonScore: 0,
+              };
+              if (rankingRes.ok) {
+                rankingData = await rankingRes.json();
+              }
+
+              profileMap.set(id, {
+                currentSeasonScore: rankingData.currentSeasonScore || profileData.currentSeasonScore || 0,
+                lifetimeScore: profileData.lifetimeScore || 0,
+                gold: profileData.gold || 0,
+                gradeRank: rankingData.gradeRank,
+                gradeTotal: rankingData.gradeTotal,
+                globalRank: rankingData.globalRank,
+                globalTotal: rankingData.globalTotal,
+                rank: undefined,
+              });
+            } catch (error) {
+              console.error(`Error fetching profile/ranking for student ${id}:`, error);
+              profileMap.set(id, { 
+                currentSeasonScore: 0, 
+                lifetimeScore: 0,
+                gold: 0,
+                gradeRank: null,
+                gradeTotal: 0,
+                globalRank: null,
+                globalTotal: 0,
+                rank: undefined 
+              });
+            }
+          }
+          
           setStudentProfiles(profileMap);
         } catch (error) {
           console.error("Error fetching students:", error);
@@ -1818,11 +1888,11 @@ function ClassActionModal({
       out.push({ ...s, hasAbsence });
     }
 
-    // Sort by competitionScore if sortOrder is set
+    // Sort by currentSeasonScore if sortOrder is set
     if (sortOrder) {
       out.sort((a, b) => {
-        const scoreA = studentProfiles.get(a._id?.toString() || "")?.competitionScore || 0;
-        const scoreB = studentProfiles.get(b._id?.toString() || "")?.competitionScore || 0;
+        const scoreA = studentProfiles.get(a._id?.toString() || "")?.currentSeasonScore || 0;
+        const scoreB = studentProfiles.get(b._id?.toString() || "")?.currentSeasonScore || 0;
         return sortOrder === "asc" ? scoreA - scoreB : scoreB - scoreA;
       });
     }
@@ -1860,11 +1930,11 @@ function ClassActionModal({
       .map((student) => {
         const studentId = student._id?.toString() || "";
         const profile = studentProfiles.get(studentId);
-        return { ...student, competitionScore: profile?.competitionScore || 0 } as User & {
-          competitionScore: number;
+        return { ...student, currentSeasonScore: profile?.currentSeasonScore || 0 } as User & {
+          currentSeasonScore: number;
         };
       })
-      .sort((a, b) => (b.competitionScore || 0) - (a.competitionScore || 0))
+      .sort((a, b) => (b.currentSeasonScore || 0) - (a.currentSeasonScore || 0))
       .slice(0, 5);
 
     return withScores;
@@ -1914,96 +1984,278 @@ function ClassActionModal({
     }, 900);
   }, []);
 
-  const handleMarkAttendance = async (studentId: string, status: AttendanceStatus) => {
+  // Save temporary data to localStorage
+  const saveTempDataToStorage = useCallback(() => {
+    const storageKey = `class_session_${classData._id?.toString()}_${date.toISOString().split('T')[0]}`;
+    try {
+      const dataToSave = {
+        tempScores: Object.fromEntries(tempScores),
+        tempAttendance: Object.fromEntries(tempAttendance),
+        tempInputValues: Object.fromEntries(tempInputValues),
+      };
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
+  }, [classData._id, date, tempScores, tempAttendance, tempInputValues]);
+
+  // Save to localStorage whenever temp data changes
+  useEffect(() => {
+    if (tempScores.size > 0 || tempAttendance.size > 0 || tempInputValues.size > 0) {
+      saveTempDataToStorage();
+    }
+  }, [tempScores, tempAttendance, tempInputValues, saveTempDataToStorage]);
+
+  const handleMarkAttendance = (studentId: string, status: AttendanceStatus) => {
+    // Chỉ lưu tạm thời, chưa lưu vào DB
+    setTempAttendance((prev) => {
+      const next = new Map(prev);
+      // Toggle: nếu click lại cùng status thì bỏ chọn
+      if (next.get(studentId) === status) {
+        next.delete(studentId);
+      } else {
+        next.set(studentId, status);
+      }
+      return next;
+    });
+    setPendingStatusByStudent((prev) => ({ ...prev, [studentId]: status }));
+  };
+
+  const handleAddTempPoints = (studentId: string, points: number) => {
+    setTempScores((prev) => {
+      const next = new Map(prev);
+      const current = next.get(studentId) || 0;
+      const profile = studentProfiles.get(studentId);
+      const baseScore = profile?.currentSeasonScore || 0;
+      // Nếu chưa có trong tempScores, lấy từ currentSeasonScore
+      if (!prev.has(studentId)) {
+        next.set(studentId, baseScore + points);
+      } else {
+        next.set(studentId, current + points);
+      }
+      return next;
+    });
+  };
+
+  const handleFinalizeSession = async () => {
     if (!user?._id) {
       showError("Không thể xác định giáo viên");
       return;
     }
 
-    setPendingStatusByStudent((prev) => ({ ...prev, [studentId]: status }));
-    setSavingAttendance(studentId);
-
     try {
       const checkDate = new Date(date);
       checkDate.setHours(0, 0, 0, 0);
+      const dateStr = formatDateLocal(checkDate);
 
-      const existingAttendance = attendanceRecords.find((att) => {
-        if (att.studentId.toString() !== studentId) return false;
-        const attDate = new Date(att.sessionDate);
-        attDate.setHours(0, 0, 0, 0);
-        return attDate.getTime() === checkDate.getTime();
-      });
+      // Process all students
+      const updates = studentsForDate.map((student) => {
+        const studentId = student._id?.toString() || "";
+        const tempScore = tempScores.get(studentId);
+        const baseScore = studentProfiles.get(studentId)?.currentSeasonScore || 0;
+        const pointsToAdd = tempScore !== undefined ? tempScore - baseScore : 0;
+        const attendanceStatus = tempAttendance.get(studentId) || null;
 
-      if (existingAttendance) {
-        const response = await fetch(`/api/attendance/${existingAttendance._id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error?.error || "Lỗi cập nhật");
-        }
-
-        const updated = await response.json();
-        setAttendanceRecords((prev) =>
-          prev.map((att) =>
-            att._id?.toString() === existingAttendance._id?.toString() ? updated : att
-          )
-        );
-
-        const refreshDateStr = formatDateLocal(checkDate);
-        const refreshResponse = await fetch(
-          `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}`
-        );
-        if (refreshResponse.ok) setAttendanceRecords(await refreshResponse.json());
-
-        showSuccess("Đã cập nhật điểm danh");
-        flashSaved(studentId);
-      } else {
-        const attendanceData: CreateAttendanceData = {
+        return {
           studentId,
-          classId: classData._id?.toString(),
-          sessionDate: formatDateLocal(checkDate),
-          status,
-          markedBy: user._id.toString(),
+          pointsToAdd,
+          attendanceStatus,
         };
+      });
 
-        const response = await fetch("/api/attendance", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(attendanceData),
+      // Add points for all students
+      const pointPromises = updates
+        .filter((u) => u.pointsToAdd !== 0) // Allow negative points (subtraction)
+        .map(async (u) => {
+          try {
+            console.log(`Adding ${u.pointsToAdd} points to student ${u.studentId}`);
+            const response = await fetch(`/api/students/${u.studentId}/add-points`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ points: u.pointsToAdd }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+              console.error(`Error response for student ${u.studentId}:`, errorData);
+              throw new Error(errorData?.error || `Lỗi cộng điểm cho học sinh ${u.studentId}`);
+            }
+
+            const result = await response.json();
+            console.log(`Successfully added points to student ${u.studentId}:`, result);
+            return result;
+          } catch (error) {
+            console.error(`Error adding points to student ${u.studentId}:`, error);
+            throw error;
+          }
         });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error?.error || "Lỗi tạo điểm danh");
-        }
+      await Promise.all(pointPromises);
 
-        const newAttendance = await response.json();
-        setAttendanceRecords((prev) => [...prev, newAttendance]);
+      // Save attendance records
+      const attendancePromises = updates
+        .filter((u) => u.attendanceStatus !== null)
+        .map(async (u) => {
+          try {
+            const existingAttendance = attendanceRecords.find((att) => {
+              if (att.studentId.toString() !== u.studentId) return false;
+              const attDate = new Date(att.sessionDate);
+              attDate.setHours(0, 0, 0, 0);
+              return attDate.getTime() === checkDate.getTime();
+            });
 
-        const refreshDateStr = formatDateLocal(checkDate);
-        const refreshResponse = await fetch(
-          `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}`
-        );
-        if (refreshResponse.ok) setAttendanceRecords(await refreshResponse.json());
+            // Calculate points based on attendance status
+            let attendancePoints = 0;
+            if (u.attendanceStatus === "present") {
+              attendancePoints = 100;
+            } else if (u.attendanceStatus === "excused") {
+              attendancePoints = 50;
+            } else if (u.attendanceStatus === "absent") {
+              attendancePoints = 0;
+            }
 
-        showSuccess("Đã điểm danh");
-        flashSaved(studentId);
+            // Add attendance points
+            if (attendancePoints > 0) {
+              const pointsResponse = await fetch(`/api/students/${u.studentId}/add-points`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ points: attendancePoints }),
+              });
+
+              if (!pointsResponse.ok) {
+                console.error(`Error adding attendance points to student ${u.studentId}`);
+              }
+            }
+
+            // Save attendance record
+            if (existingAttendance) {
+              const response = await fetch(`/api/attendance/${existingAttendance._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: u.attendanceStatus }),
+              });
+
+              if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error?.error || "Lỗi cập nhật điểm danh");
+              }
+
+              return await response.json();
+            } else {
+              if (!user?._id) {
+                throw new Error("Không thể xác định giáo viên");
+              }
+              const attendanceData: CreateAttendanceData = {
+                studentId: u.studentId,
+                classId: classData._id?.toString(),
+                sessionDate: dateStr,
+                status: u.attendanceStatus!,
+                markedBy: user._id.toString(),
+              };
+
+              const response = await fetch("/api/attendance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(attendanceData),
+              });
+
+              if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error?.error || "Lỗi tạo điểm danh");
+              }
+
+              return await response.json();
+            }
+          } catch (error) {
+            console.error(`Error saving attendance for student ${u.studentId}:`, error);
+            throw error;
+          }
+        });
+
+      await Promise.all(attendancePromises);
+
+      // Wait a bit to ensure database is updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Refresh attendance records
+      const refreshDateStr = formatDateLocal(checkDate);
+      const refreshResponse = await fetch(
+        `/api/attendance?classId=${classData._id}&sessionDate=${refreshDateStr}&_t=${Date.now()}`
+      );
+      if (refreshResponse.ok) {
+        setAttendanceRecords(await refreshResponse.json());
       }
+
+      // Refresh student profiles to get updated scores
+      const timestamp = Date.now();
+      const studentPromises = classData.enrolledStudents.map((studentId) =>
+        fetch(`/api/students/${studentId}?_t=${timestamp}`).then((res) => res.json())
+      );
+      const studentData = await Promise.all(studentPromises);
+      
+      const profileMap = new Map<string, { 
+        currentSeasonScore: number; 
+        lifetimeScore: number;
+        gold: number;
+        gradeRank: number | null;
+        gradeTotal: number;
+        globalRank: number | null;
+        globalTotal: number;
+        rank?: number;
+      }>();
+      
+      for (const s of studentData) {
+        const id = s._id?.toString();
+        if (!id) continue;
+        
+        try {
+          const profileRes = await fetch(`/api/students/${id}?_t=${timestamp}`);
+          let profileData: any = {};
+          if (profileRes.ok) {
+            profileData = await profileRes.json();
+          }
+
+          const rankingRes = await fetch(`/api/students/ranking?studentId=${id}&_t=${timestamp}`);
+          let rankingData: any = {
+            gradeRank: null,
+            gradeTotal: 0,
+            globalRank: null,
+            globalTotal: 0,
+            currentSeasonScore: 0,
+          };
+          if (rankingRes.ok) {
+            rankingData = await rankingRes.json();
+          }
+
+          profileMap.set(id, {
+            currentSeasonScore: rankingData.currentSeasonScore || profileData.currentSeasonScore || 0,
+            lifetimeScore: profileData.lifetimeScore || 0,
+            gold: profileData.gold || 0,
+            gradeRank: rankingData.gradeRank,
+            gradeTotal: rankingData.gradeTotal,
+            globalRank: rankingData.globalRank,
+            globalTotal: rankingData.globalTotal,
+            rank: undefined,
+          });
+        } catch (error) {
+          console.error(`Error refreshing profile for student ${id}:`, error);
+        }
+      }
+      
+      setStudentProfiles(profileMap);
+
+      // Clear temporary data and localStorage
+      setTempScores(new Map());
+      setTempAttendance(new Map());
+      setTempInputValues(new Map());
+      const storageKey = `class_session_${classData._id?.toString()}_${date.toISOString().split('T')[0]}`;
+      localStorage.removeItem(storageKey);
+
+      showSuccess("Đã tổng kết buổi học thành công");
     } catch (error) {
-      console.error("Error marking attendance:", error);
-      const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra khi điểm danh";
+      console.error("Error finalizing session:", error);
+      const errorMessage = error instanceof Error ? error.message : "Lỗi tổng kết buổi học";
       showError(errorMessage);
-    } finally {
-      setSavingAttendance(null);
-      setPendingStatusByStudent((prev) => {
-        const next = { ...prev };
-        delete next[studentId];
-        return next;
-      });
     }
   };
 
@@ -2129,7 +2381,7 @@ function ClassActionModal({
                     )}
                   </div>
                   <button
-                    onClick={() => showSuccess("Tính năng tổng kết sẽ cập nhật sau")}
+                    onClick={handleFinalizeSession}
                     className="px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 whitespace-nowrap cursor-pointer hover:shadow-md hover:scale-[1.02]"
                     style={{
                       backgroundColor: "white",
@@ -2183,12 +2435,13 @@ function ClassActionModal({
                     {studentsForDate.map((student) => {
                       const studentId = student._id?.toString() || "";
                       const currentStatus = getAttendanceStatus(studentId);
+                      const tempStatus = tempAttendance.get(studentId);
                       const pending = pendingStatusByStudent[studentId] ?? null;
-                      const displayedStatus = pending ?? currentStatus;
+                      const displayedStatus = tempStatus ?? pending ?? currentStatus;
 
                       const isSaving = savingAttendance === studentId;
                       const profile = studentProfiles.get(studentId);
-                      const competitionScore = profile?.competitionScore || 0;
+                      const currentSeasonScore = profile?.currentSeasonScore || 0;
 
                       const studentRank = classRanking.findIndex((s) => s._id?.toString() === studentId) + 1;
                       const highlighted = highlightStudentId === studentId;
@@ -2268,19 +2521,31 @@ function ClassActionModal({
                                 {student.fullName}
                               </div>
                               <div className="text-xs leading-snug flex items-center gap-2" style={{ color: "rgba(108,88,76,0.75)" }}>
-                                <span>{(studentRank || "-")}/{studentsForDate.length}</span>
+                                {/* xx/yy: thứ hạng theo khối / thứ hạng toàn server */}
+                                <span>
+                                  {(() => {
+                                    const xx = profile?.gradeRank || "-";
+                                    const yy = profile?.globalRank || "-";
+                                    return `${xx}/${yy}`;
+                                  })()}
+                                </span>
                                 <span>•</span>
-                                <span>{competitionScore}</span>
+                                {/* Vàng tích lũy */}
+                                <span>{profile?.gold || 0}</span>
                                 <span>•</span>
-                                <span>360</span>
+                                {/* Điểm tích lũy theo mùa */}
+                                <span>{currentSeasonScore}</span>
                               </div>
                             </div>
                           </div>
 
-                          {/* Middle score */}
+                          {/* Middle score - điểm tạm thời */}
                           <div className="flex-shrink-0 text-center px-3">
                             <div className="text-xl font-black" style={{ color: colors.darkBrown }}>
-                              {competitionScore}
+                              {(() => {
+                                const tempScore = tempScores.get(studentId);
+                                return tempScore !== undefined ? tempScore : currentSeasonScore;
+                              })()}
                             </div>
                           </div>
 
@@ -2312,6 +2577,29 @@ function ClassActionModal({
                                   backgroundColor: "white",
                                 }}
                                 aria-label="Input chữ nhật"
+                                value={tempInputValues.get(studentId) || ""}
+                                onChange={(e) => {
+                                  setTempInputValues((prev) => {
+                                    const next = new Map(prev);
+                                    next.set(studentId, e.target.value);
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const value = e.currentTarget.value.trim();
+                                    const points = parseFloat(value);
+                                    if (!isNaN(points) && points > 0) {
+                                      handleAddTempPoints(studentId, points);
+                                      setTempInputValues((prev) => {
+                                        const next = new Map(prev);
+                                        next.set(studentId, "");
+                                        return next;
+                                      });
+                                    }
+                                    e.currentTarget.blur();
+                                  }
+                                }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.borderColor = colors.mediumGreen;
                                 }}
@@ -2528,7 +2816,7 @@ function ClassActionModal({
                           {classRanking[0].fullName}
                         </div>
                         <div className="flex-shrink-0 text-sm font-medium" style={{ color: colors.darkBrown }}>
-                          {classRanking[0].competitionScore}
+                          {classRanking[0].currentSeasonScore}
                         </div>
                       </div>
                     </div>
@@ -2569,7 +2857,7 @@ function ClassActionModal({
                               {s.fullName}
                             </div>
                             <div className="flex-shrink-0 text-sm font-medium ml-3" style={{ color: colors.darkBrown }}>
-                              {s.competitionScore}
+                              {s.currentSeasonScore}
                             </div>
                           </div>
                         </div>

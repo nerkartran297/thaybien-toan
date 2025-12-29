@@ -3,6 +3,7 @@ import { getDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
+import { addPointsToStudent } from '@/lib/score-utils';
 
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -132,14 +133,8 @@ export async function POST(request: NextRequest) {
           });
 
         if (!competitionPointsRecord) {
-          // Add points to student profile
-          await db.collection('student_profiles').updateOne(
-            { _id: session.studentId },
-            {
-              $inc: { competitionScore: points },
-              $set: { updatedAt: new Date() },
-            }
-          );
+          // Add points to both lifetimeScore and current season
+          await addPointsToStudent(db, session.studentId, points);
 
           // Record that points were added for this room
           await db.collection('competition_points').insertOne({
@@ -149,27 +144,6 @@ export async function POST(request: NextRequest) {
             rank,
             addedAt: new Date(),
           });
-
-          // Update monthly score
-          const now = new Date();
-          const month = now.getMonth() + 1;
-          const year = now.getFullYear();
-
-          await db.collection('monthly_scores').updateOne(
-            {
-              studentId: session.studentId,
-              month,
-              year,
-            },
-            {
-              $inc: { totalScore: points },
-              $set: { updatedAt: new Date() },
-              $setOnInsert: {
-                createdAt: new Date(),
-              },
-            },
-            { upsert: true }
-          );
 
           pointsAdded += points;
           updates.push({

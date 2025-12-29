@@ -85,7 +85,10 @@ async function migrateStudentProfiles() {
       // Create new student profile
       const studentProfile = {
         userId: student._id,
-        competitionScore: 0,
+        lifetimeScore: 0,
+        seasonalScores: [0],
+        currentSeason: 1,
+        gold: 0,
         status: 'PENDING', // Default status
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -141,6 +144,7 @@ async function migrateStudentProfiles() {
             const newProfile = {
               userId: user._id,
               competitionScore: 0,
+              gold: 0,
               status: 'PENDING',
               createdAt: new Date(),
               updatedAt: new Date(),

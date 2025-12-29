@@ -3,6 +3,7 @@ import { getDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
+import { addPointsToStudent } from '@/lib/score-utils';
 
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -148,34 +149,8 @@ export async function POST(request: NextRequest) {
 
           // Only add score if the update was successful
           if (updateResult.modifiedCount > 0) {
-            // Add the highestScore to global competition score
-            await db.collection('student_profiles').updateOne(
-              { _id: studentId },
-              {
-                $inc: { competitionScore: newHighestScore },
-                $set: { updatedAt: new Date() },
-              }
-            );
-
-            // Update monthly score
-            const month = now.getMonth() + 1;
-            const year = now.getFullYear();
-
-            await db.collection('monthly_scores').updateOne(
-              {
-                studentId: studentId,
-                month,
-                year,
-              },
-              {
-                $inc: { totalScore: newHighestScore },
-                $set: { updatedAt: new Date() },
-                $setOnInsert: {
-                  createdAt: new Date(),
-                },
-              },
-              { upsert: true }
-            );
+            // Add points to both lifetimeScore and current season
+            await addPointsToStudent(db, studentId, newHighestScore);
           }
         }
       }

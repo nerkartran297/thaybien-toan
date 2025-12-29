@@ -7,9 +7,14 @@ import { ObjectId } from 'mongodb';
 export interface StudentProfile {
   _id?: ObjectId;
   userId: ObjectId; // Reference đến users._id
-  competitionScore: number; // Điểm tích lũy tổng (mặc định: 0)
+  lifetimeScore: number; // Điểm tổng trọn đời, không reset, dùng để tính level (mặc định: 0)
+  seasonalScores: number[]; // Mảng điểm theo mùa [mùa1, mùa2, mùa3, ...], mùa hiện tại là phần tử cuối
+  currentSeason: number; // Số mùa hiện tại (bắt đầu từ 1), dùng để track mùa
+  gold?: number; // Tiền vàng để mua vật phẩm (mặc định: 0)
+  // Deprecated fields (giữ lại để tương thích)
+  competitionScore?: number; // Điểm cũ, sẽ migrate sang lifetimeScore
   monthly_scores?: {
-    // Object lưu điểm theo tháng, key: "YYYY-MM"
+    // Object lưu điểm theo tháng, key: "YYYY-MM" (deprecated)
     [monthKey: string]: number;
   };
   grade?: number | null; // Khối lớp (6-12)
@@ -23,7 +28,10 @@ export interface StudentProfile {
 
 export interface CreateStudentProfileData {
   userId: ObjectId | string;
-  competitionScore?: number; // Mặc định: 0
+  lifetimeScore?: number; // Mặc định: 0
+  seasonalScores?: number[]; // Mặc định: [0]
+  currentSeason?: number; // Mặc định: 1
+  gold?: number; // Mặc định: 0
   grade?: number | null;
   group?: string | null;
   status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';

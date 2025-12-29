@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
           enrollmentCount,
           grade: profile?.grade || null,
           group: profile?.group || null,
+          gold: profile?.gold || 0,
         };
       })
     );
@@ -122,7 +123,10 @@ export async function POST(request: NextRequest) {
       userId: result.insertedId,
       grade: null,
       group: null,
-      competitionScore: 0,
+      lifetimeScore: 0,
+      seasonalScores: [0],
+      currentSeason: 1,
+      gold: 0,
       status: 'PENDING',
       notes: null,
       dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
