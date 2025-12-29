@@ -1612,6 +1612,7 @@ function ClassActionModal({
   const [tempScores, setTempScores] = useState<Map<string, number>>(new Map()); // Tổng điểm đã cộng tạm thời cho mỗi học sinh
   const [tempAttendance, setTempAttendance] = useState<Map<string, AttendanceStatusOrNull>>(new Map()); // Điểm danh tạm thời
   const [tempInputValues, setTempInputValues] = useState<Map<string, string>>(new Map()); // Giá trị trong input hình chữ nhật
+  const [isFinalizing, setIsFinalizing] = useState(false); // Trạng thái đang tổng kết
 
   // Resizable sidebar state
   const [rightSideWidth, setRightSideWidth] = useState(420); // Default width
@@ -2043,10 +2044,24 @@ function ClassActionModal({
       return;
     }
 
+    if (isFinalizing) {
+      return; // Prevent multiple clicks
+    }
+
+    setIsFinalizing(true);
+
     try {
       const checkDate = new Date(date);
       checkDate.setHours(0, 0, 0, 0);
       const dateStr = formatDateLocal(checkDate);
+
+      // Helper function to get attendance points
+      const getAttendancePoints = (status: AttendanceStatusOrNull): number => {
+        if (status === "present") return 100;
+        if (status === "excused") return 50;
+        if (status === "absent") return 0;
+        return 0;
+      };
 
       // Process all students
       const updates = studentsForDate.map((student) => {
@@ -2054,25 +2069,63 @@ function ClassActionModal({
         const tempScore = tempScores.get(studentId);
         const baseScore = studentProfiles.get(studentId)?.currentSeasonScore || 0;
         const pointsToAdd = tempScore !== undefined ? tempScore - baseScore : 0;
-        const attendanceStatus = tempAttendance.get(studentId) || null;
+        
+        // Get attendance status from tempAttendance (new) or existing attendance (old)
+        const newAttendanceStatus = tempAttendance.get(studentId) || null;
+        
+        // Get existing attendance from database
+        const existingAttendance = attendanceRecords.find((att) => {
+          if (att.studentId.toString() !== studentId) return false;
+          const attDate = new Date(att.sessionDate);
+          attDate.setHours(0, 0, 0, 0);
+          return attDate.getTime() === checkDate.getTime();
+        });
+        
+        const oldAttendanceStatus = existingAttendance?.status as AttendanceStatusOrNull || null;
+        
+        // Calculate attendance points difference
+        // If status changed: subtract old points, add new points
+        let attendancePointsDiff = 0;
+        if (newAttendanceStatus !== null && newAttendanceStatus !== oldAttendanceStatus) {
+          const oldPoints = getAttendancePoints(oldAttendanceStatus);
+          const newPoints = getAttendancePoints(newAttendanceStatus);
+          attendancePointsDiff = newPoints - oldPoints; // Can be negative if changing from present to absent
+        } else if (newAttendanceStatus === null && oldAttendanceStatus !== null) {
+          // Removing attendance (shouldn't happen, but handle it)
+          const oldPoints = getAttendancePoints(oldAttendanceStatus);
+          attendancePointsDiff = -oldPoints;
+        } else if (newAttendanceStatus !== null && oldAttendanceStatus === null) {
+          // Adding new attendance
+          const newPoints = getAttendancePoints(newAttendanceStatus);
+          attendancePointsDiff = newPoints;
+        }
+        // If status unchanged, attendancePointsDiff = 0
+
+        console.log(`Student ${studentId}: baseScore=${baseScore}, tempScore=${tempScore}, pointsToAdd=${pointsToAdd}, oldAttendance=${oldAttendanceStatus}, newAttendance=${newAttendanceStatus}, attendancePointsDiff=${attendancePointsDiff}`);
 
         return {
           studentId,
           pointsToAdd,
-          attendanceStatus,
+          attendanceStatus: newAttendanceStatus !== null ? newAttendanceStatus : oldAttendanceStatus,
+          attendancePointsDiff,
+          oldAttendanceStatus,
+          existingAttendanceId: existingAttendance?._id?.toString(),
         };
       });
 
-      // Add points for all students
+      // Add points for all students (regular points + attendance points difference)
       const pointPromises = updates
-        .filter((u) => u.pointsToAdd !== 0) // Allow negative points (subtraction)
+        .filter((u) => u.pointsToAdd !== 0 || u.attendancePointsDiff !== 0) // Include if there are any point changes
         .map(async (u) => {
           try {
-            console.log(`Adding ${u.pointsToAdd} points to student ${u.studentId}`);
+            const totalPoints = u.pointsToAdd + u.attendancePointsDiff;
+            if (totalPoints === 0) return null; // Skip if no net change
+            
+            console.log(`Adding ${totalPoints} points to student ${u.studentId} (regular: ${u.pointsToAdd}, attendance diff: ${u.attendancePointsDiff})`);
             const response = await fetch(`/api/students/${u.studentId}/add-points`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ points: u.pointsToAdd }),
+              body: JSON.stringify({ points: totalPoints }),
             });
 
             if (!response.ok) {
@@ -2090,46 +2143,23 @@ function ClassActionModal({
           }
         });
 
-      await Promise.all(pointPromises);
+      await Promise.all(pointPromises.filter(p => p !== null));
 
-      // Save attendance records
+      // Save attendance records (only if status changed or is new)
       const attendancePromises = updates
-        .filter((u) => u.attendanceStatus !== null)
+        .filter((u) => {
+          // Only save if:
+          // 1. New attendance status is set (from tempAttendance)
+          // 2. Or existing attendance status exists (to keep it)
+          // But only update if status actually changed
+          return u.attendanceStatus !== null && u.attendanceStatus !== u.oldAttendanceStatus;
+        })
         .map(async (u) => {
           try {
-            const existingAttendance = attendanceRecords.find((att) => {
-              if (att.studentId.toString() !== u.studentId) return false;
-              const attDate = new Date(att.sessionDate);
-              attDate.setHours(0, 0, 0, 0);
-              return attDate.getTime() === checkDate.getTime();
-            });
-
-            // Calculate points based on attendance status
-            let attendancePoints = 0;
-            if (u.attendanceStatus === "present") {
-              attendancePoints = 100;
-            } else if (u.attendanceStatus === "excused") {
-              attendancePoints = 50;
-            } else if (u.attendanceStatus === "absent") {
-              attendancePoints = 0;
-            }
-
-            // Add attendance points
-            if (attendancePoints > 0) {
-              const pointsResponse = await fetch(`/api/students/${u.studentId}/add-points`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ points: attendancePoints }),
-              });
-
-              if (!pointsResponse.ok) {
-                console.error(`Error adding attendance points to student ${u.studentId}`);
-              }
-            }
-
             // Save attendance record
-            if (existingAttendance) {
-              const response = await fetch(`/api/attendance/${existingAttendance._id}`, {
+            if (u.existingAttendanceId) {
+              // Update existing attendance
+              const response = await fetch(`/api/attendance/${u.existingAttendanceId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: u.attendanceStatus }),
@@ -2142,6 +2172,7 @@ function ClassActionModal({
 
               return await response.json();
             } else {
+              // Create new attendance
               if (!user?._id) {
                 throw new Error("Không thể xác định giáo viên");
               }
@@ -2256,6 +2287,8 @@ function ClassActionModal({
       console.error("Error finalizing session:", error);
       const errorMessage = error instanceof Error ? error.message : "Lỗi tổng kết buổi học";
       showError(errorMessage);
+    } finally {
+      setIsFinalizing(false);
     }
   };
 
@@ -2382,14 +2415,15 @@ function ClassActionModal({
                   </div>
                   <button
                     onClick={handleFinalizeSession}
-                    className="px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 whitespace-nowrap cursor-pointer hover:shadow-md hover:scale-[1.02]"
+                    disabled={isFinalizing}
+                    className="px-4 py-2 rounded-xl font-semibold text-sm transition-all whitespace-nowrap hover:shadow-md hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
                     style={{
                       backgroundColor: "white",
                       color: colors.darkBrown,
                       border: `2px solid ${colors.brown}`,
                     }}
                   >
-                    Tổng kết
+                    {isFinalizing ? "Đang tổng kết..." : "Tổng kết"}
                   </button>
                 </div>
               </div>
@@ -2959,25 +2993,30 @@ function ClassActionModal({
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pt-2 border-t flex-shrink-0" style={{ borderColor: colors.light }}>
-          {type === "attendance" && role === "teacher" ? (
-            <button
-              onClick={requestClose}
-              className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
-              style={{ backgroundColor: colors.brown }}
-            >
-              Đóng
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              className="mr-2 mb-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: colors.mediumGreen }}
-              disabled={(type === "cancel" || type === "absence") && !reason.trim()}
-            >
-              {type === "cancel" || type === "absence" || type === "makeup" ? "Xác nhận" : "Đóng"}
-            </button>
-          )}
+        <div className="flex justify-between items-center gap-3 py-3 px-6 border-t flex-shrink-0" style={{ borderColor: colors.light }}>
+          <div className="text-base font-semibold flex items-center" style={{ color: colors.darkBrown }}>
+            Lớp: {classData.name}
+          </div>
+          <div className="flex gap-3">
+            {type === "attendance" && role === "teacher" ? (
+              <button
+                onClick={requestClose}
+                className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90"
+                style={{ backgroundColor: colors.brown }}
+              >
+                Đóng
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                className="px-5 py-2.5 rounded-lg font-medium text-white transition-all hover:shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: colors.mediumGreen }}
+                disabled={(type === "cancel" || type === "absence") && !reason.trim()}
+              >
+                {type === "cancel" || type === "absence" || type === "makeup" ? "Xác nhận" : "Đóng"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
