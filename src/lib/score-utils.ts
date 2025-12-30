@@ -35,19 +35,33 @@ export async function addPointsToStudent(
   // Add points to current season
   updatedSeasonalScores[currentSeasonIndex] = (updatedSeasonalScores[currentSeasonIndex] || 0) + points;
 
-  // Update both lifetimeScore and seasonalScores
+  // Calculate gold to add: if points > 0 (adding points, not subtracting), add gold = points / 2
+  const goldToAdd = points > 0 ? Math.floor(points / 2) : 0;
+
+  // Update both lifetimeScore, seasonalScores, and gold (if applicable)
+  const updateData: any = {
+    $inc: { 
+      lifetimeScore: points,
+    },
+    $set: { 
+      seasonalScores: updatedSeasonalScores,
+      currentSeason: profile.currentSeason || 1,
+      updatedAt: new Date(),
+    },
+  };
+
+  // Only add gold if points were added (positive)
+  if (goldToAdd > 0) {
+    // Ensure gold field exists (initialize to 0 if it doesn't exist)
+    if (profile.gold === undefined || profile.gold === null) {
+      updateData.$set.gold = 0;
+    }
+    updateData.$inc.gold = goldToAdd;
+  }
+
   const updateResult = await db.collection('student_profiles').updateOne(
     { _id: studentProfileId },
-    {
-      $inc: { 
-        lifetimeScore: points,
-      },
-      $set: { 
-        seasonalScores: updatedSeasonalScores,
-        currentSeason: profile.currentSeason || 1,
-        updatedAt: new Date(),
-      },
-    },
+    updateData,
     { upsert: false }
   );
 

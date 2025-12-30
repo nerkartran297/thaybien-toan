@@ -109,6 +109,25 @@ export default function WeekCalendar({
     });
   };
 
+  // Helper function to check if class has pending temp data (not finalized)
+  const hasPendingTempData = (classId: string, date: Date): boolean => {
+    try {
+      const storageKey = `class_session_${classId}_${date.toISOString().split('T')[0]}`;
+      const savedData = localStorage.getItem(storageKey);
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        // Check if there's any temp data
+        const hasTempScores = parsed.tempScores && Object.keys(parsed.tempScores).length > 0;
+        const hasTempGold = parsed.tempGold && Object.keys(parsed.tempGold).length > 0;
+        const hasTempAttendance = parsed.tempAttendance && Object.keys(parsed.tempAttendance).length > 0;
+        return hasTempScores || hasTempGold || hasTempAttendance;
+      }
+    } catch (error) {
+      // Ignore errors
+    }
+    return false;
+  };
+
   // Helper function to check if student was enrolled before or on the class date
   // const isStudentEnrolledForDate = (
   //   studentId: string,
@@ -647,7 +666,8 @@ export default function WeekCalendar({
                                     cls._id?.toString()
                                   )
                                     return false;
-                                  if (att.status !== "excused") return false;
+                                  // P (excused) và K (absent) đều tính vào vắng
+                                  if (att.status !== "excused" && att.status !== "absent") return false;
                                   const attDate = new Date(att.sessionDate);
                                   attDate.setHours(0, 0, 0, 0);
                                   const attDateStr = formatDateLocal(attDate);
@@ -729,6 +749,26 @@ export default function WeekCalendar({
                         }
                       }
 
+                      // Check if class has pending temp data
+                      const hasPendingData = role === "teacher" && hasPendingTempData(cls._id?.toString() || "", date);
+                      
+                      // Get base background color for teacher
+                      let teacherBgColor = "var(--teacher-class-available)";
+                      if (isCancelledOnDate) {
+                        teacherBgColor = "var(--teacher-class-cancelled)";
+                      } else if (isFull) {
+                        teacherBgColor = "var(--teacher-class-full)";
+                      }
+                      
+                      // Darken background if has pending data
+                      if (hasPendingData && !isCancelledOnDate) {
+                        // Apply a darker shade by using CSS filter or opacity
+                        // We'll use a slightly darker version of the base color
+                        teacherBgColor = isFull
+                          ? "var(--teacher-class-full)"
+                          : "#8BA397"; // Darker version of teacher-class-available for pending changes
+                      }
+
                       return (
                         <div
                           key={cls._id?.toString()}
@@ -753,11 +793,7 @@ export default function WeekCalendar({
                                   : isFull
                                   ? "var(--class-full)"
                                   : "var(--class-available)"
-                                : isCancelledOnDate
-                                ? "var(--teacher-class-cancelled)"
-                                : isFull
-                                ? "var(--teacher-class-full)"
-                                : "var(--teacher-class-available)",
+                                : teacherBgColor,
                             color:
                               role === "student"
                                 ? isCancelledOnDate
@@ -899,12 +935,23 @@ export default function WeekCalendar({
                               )}
 
                             {role === "teacher" && (
-                              <div className="text-xs space-y-1 px-1">
+                              <div className="text-xs space-y-0.5 w-full">
                                 <div
-                                  className="break-words"
+                                  className="text-sm font-semibold break-words"
                                   style={{
                                     wordBreak: "break-word",
                                     overflowWrap: "break-word",
+                                    color: "inherit",
+                                  }}
+                                >
+                                  {cls.name}
+                                </div>
+                                <div
+                                  className="text-xs opacity-75 break-words"
+                                  style={{
+                                    wordBreak: "break-word",
+                                    overflowWrap: "break-word",
+                                    color: "inherit",
                                   }}
                                 >
                                   {studentCountForDate} học sinh
@@ -913,10 +960,11 @@ export default function WeekCalendar({
                                   (absenceCountForDate > 0 ||
                                     makeupCountForDate > 0) && (
                                     <div
-                                      className="text-[10px] opacity-75 break-words"
+                                      className="text-[9px] opacity-60 break-words"
                                       style={{
                                         wordBreak: "break-word",
                                         overflowWrap: "break-word",
+                                        color: "inherit",
                                       }}
                                     >
                                       {absenceCountForDate > 0 && (
@@ -1161,7 +1209,8 @@ export default function WeekCalendar({
                                     cls._id?.toString()
                                   )
                                     return false;
-                                  if (att.status !== "excused") return false;
+                                  // P (excused) và K (absent) đều tính vào vắng
+                                  if (att.status !== "excused" && att.status !== "absent") return false;
                                   const attDate = new Date(att.sessionDate);
                                   attDate.setHours(0, 0, 0, 0);
                                   const attDateStr = formatDateLocal(attDate);
@@ -1242,6 +1291,26 @@ export default function WeekCalendar({
                         }
                       }
 
+                      // Check if class has pending temp data
+                      const hasPendingData = role === "teacher" && hasPendingTempData(cls._id?.toString() || "", date);
+                      
+                      // Get base background color for teacher
+                      let teacherBgColor = "var(--teacher-class-available)";
+                      if (isCancelledOnDate) {
+                        teacherBgColor = "var(--teacher-class-cancelled)";
+                      } else if (isFull) {
+                        teacherBgColor = "var(--teacher-class-full)";
+                      }
+                      
+                      // Darken background if has pending data
+                      if (hasPendingData && !isCancelledOnDate) {
+                        // Apply a darker shade by using CSS filter or opacity
+                        // We'll use a slightly darker version of the base color
+                        teacherBgColor = isFull
+                          ? "var(--teacher-class-full)"
+                          : "#8BA36A"; // Darker version of teacher-class-available for pending changes
+                      }
+
                       return (
                         <div
                           key={cls._id?.toString()}
@@ -1266,11 +1335,7 @@ export default function WeekCalendar({
                                   : isFull
                                   ? "var(--class-full)"
                                   : "var(--class-available)"
-                                : isCancelledOnDate
-                                ? "var(--teacher-class-cancelled)"
-                                : isFull
-                                ? "var(--teacher-class-full)"
-                                : "var(--teacher-class-available)",
+                                : teacherBgColor,
                             color:
                               role === "student"
                                 ? isCancelledOnDate
@@ -1412,12 +1477,23 @@ export default function WeekCalendar({
                               )}
 
                             {role === "teacher" && (
-                              <div className="text-xs space-y-0.5 px-0.5">
+                              <div className="text-xs space-y-0.5 px-0.5 w-full">
                                 <div
-                                  className="break-words"
+                                  className="text-sm font-semibold break-words"
                                   style={{
                                     wordBreak: "break-word",
                                     overflowWrap: "break-word",
+                                    color: "inherit",
+                                  }}
+                                >
+                                  {cls.name}
+                                </div>
+                                <div
+                                  className="text-xs opacity-75 break-words"
+                                  style={{
+                                    wordBreak: "break-word",
+                                    overflowWrap: "break-word",
+                                    color: "inherit",
                                   }}
                                 >
                                   {studentCountForDate} học sinh
@@ -1426,10 +1502,11 @@ export default function WeekCalendar({
                                   (absenceCountForDate > 0 ||
                                     makeupCountForDate > 0) && (
                                     <div
-                                      className="text-[9px] opacity-75 break-words"
+                                      className="text-[9px] opacity-60 break-words"
                                       style={{
                                         wordBreak: "break-word",
                                         overflowWrap: "break-word",
+                                        color: "inherit",
                                       }}
                                     >
                                       {absenceCountForDate > 0 && (
@@ -1595,6 +1672,8 @@ function ClassActionModal({
   const [recentlySavedByStudent, setRecentlySavedByStudent] = useState<Record<string, boolean>>({});
 
   const rowRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const inputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map());
+  const goldInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map());
 
   const [studentProfiles, setStudentProfiles] = useState<
     Map<string, { 
@@ -1611,8 +1690,10 @@ function ClassActionModal({
 
   // Temporary scores and attendance (chưa lưu vào DB)
   const [tempScores, setTempScores] = useState<Map<string, number>>(new Map()); // Tổng điểm đã cộng tạm thời cho mỗi học sinh
+  const [tempGold, setTempGold] = useState<Map<string, number>>(new Map()); // Tổng vàng đã cộng tạm thời cho mỗi học sinh
   const [tempAttendance, setTempAttendance] = useState<Map<string, AttendanceStatusOrNull>>(new Map()); // Điểm danh tạm thời
-  const [tempInputValues, setTempInputValues] = useState<Map<string, string>>(new Map()); // Giá trị trong input hình chữ nhật
+  const [tempInputValues, setTempInputValues] = useState<Map<string, string>>(new Map()); // Giá trị trong input hình chữ nhật (điểm)
+  const [tempGoldInputValues, setTempGoldInputValues] = useState<Map<string, string>>(new Map()); // Giá trị trong input hình tròn (vàng)
   const [isFinalizing, setIsFinalizing] = useState(false); // Trạng thái đang tổng kết
 
   // Resizable sidebar state
@@ -2062,14 +2143,16 @@ function ClassActionModal({
     try {
       const dataToSave = {
         tempScores: Object.fromEntries(tempScores),
+        tempGold: Object.fromEntries(tempGold),
         tempAttendance: Object.fromEntries(tempAttendance),
         tempInputValues: Object.fromEntries(tempInputValues),
+        tempGoldInputValues: Object.fromEntries(tempGoldInputValues),
       };
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     } catch (error) {
       console.error('Error saving to localStorage:', error);
     }
-  }, [classData._id, date, tempScores, tempAttendance, tempInputValues]);
+  }, [classData._id, date, tempScores, tempGold, tempAttendance, tempInputValues, tempGoldInputValues]);
 
   // Load temporary data from localStorage when modal opens
   useEffect(() => {
@@ -2085,14 +2168,24 @@ function ClassActionModal({
             setTempScores(new Map(Object.entries(parsed.tempScores).map(([k, v]) => [k, Number(v)])));
           }
           
+          // Restore tempGold
+          if (parsed.tempGold && Object.keys(parsed.tempGold).length > 0) {
+            setTempGold(new Map(Object.entries(parsed.tempGold).map(([k, v]) => [k, Number(v)])));
+          }
+          
           // Restore tempAttendance
           if (parsed.tempAttendance && Object.keys(parsed.tempAttendance).length > 0) {
             setTempAttendance(new Map(Object.entries(parsed.tempAttendance)));
-          }
+      }
           
           // Restore tempInputValues
           if (parsed.tempInputValues && Object.keys(parsed.tempInputValues).length > 0) {
             setTempInputValues(new Map(Object.entries(parsed.tempInputValues)));
+          }
+          
+          // Restore tempGoldInputValues
+          if (parsed.tempGoldInputValues && Object.keys(parsed.tempGoldInputValues).length > 0) {
+            setTempGoldInputValues(new Map(Object.entries(parsed.tempGoldInputValues)));
           }
         }
       } catch (error) {
@@ -2105,7 +2198,7 @@ function ClassActionModal({
   useEffect(() => {
     if (type === "attendance" && role === "teacher" && classData._id) {
       // Only save if there's actual data to save
-      if (tempScores.size > 0 || tempAttendance.size > 0 || tempInputValues.size > 0) {
+      if (tempScores.size > 0 || tempGold.size > 0 || tempAttendance.size > 0 || tempInputValues.size > 0 || tempGoldInputValues.size > 0) {
         saveTempDataToStorage();
       } else {
         // If all temp data is cleared, also clear localStorage
@@ -2113,7 +2206,7 @@ function ClassActionModal({
         localStorage.removeItem(storageKey);
       }
     }
-  }, [tempScores, tempAttendance, tempInputValues, saveTempDataToStorage, type, role, classData._id, date]);
+  }, [tempScores, tempGold, tempAttendance, tempInputValues, tempGoldInputValues, saveTempDataToStorage, type, role, classData._id, date]);
 
   const handleMarkAttendance = (studentId: string, status: AttendanceStatus) => {
     // Chỉ lưu tạm thời, chưa lưu vào DB
@@ -2141,6 +2234,22 @@ function ClassActionModal({
         next.set(studentId, baseScore + points);
       } else {
         next.set(studentId, current + points);
+      }
+      return next;
+    });
+  };
+
+  const handleAddTempGold = (studentId: string, gold: number) => {
+    setTempGold((prev) => {
+      const next = new Map(prev);
+      const current = next.get(studentId) || 0;
+      const profile = studentProfiles.get(studentId);
+      const baseGold = profile?.gold || 0;
+      // Nếu chưa có trong tempGold, lấy từ gold hiện tại
+      if (!prev.has(studentId)) {
+        next.set(studentId, baseGold + gold);
+      } else {
+        next.set(studentId, current + gold);
       }
       return next;
     });
@@ -2204,6 +2313,10 @@ function ClassActionModal({
         const baseScore = studentProfiles.get(studentId)?.currentSeasonScore || 0;
         const pointsToAdd = tempScore !== undefined ? tempScore - baseScore : 0;
         
+        const tempGoldValue = tempGold.get(studentId);
+        const baseGold = studentProfiles.get(studentId)?.gold || 0;
+        const goldToAdd = tempGoldValue !== undefined ? tempGoldValue - baseGold : 0;
+        
         // Get attendance status from tempAttendance (new) - this is what user wants to set
         // CRITICAL: tempAttendance only has values if user clicked attendance buttons in THIS session
         // If tempAttendance doesn't have a value, it means user didn't change anything
@@ -2213,11 +2326,11 @@ function ClassActionModal({
         
         // Get existing attendance from LATEST database records - this is what's currently in DB
         const existingAttendance = latestAttendanceRecords.find((att) => {
-          if (att.studentId.toString() !== studentId) return false;
-          const attDate = new Date(att.sessionDate);
-          attDate.setHours(0, 0, 0, 0);
-          return attDate.getTime() === checkDate.getTime();
-        });
+        if (att.studentId.toString() !== studentId) return false;
+        const attDate = new Date(att.sessionDate);
+        attDate.setHours(0, 0, 0, 0);
+        return attDate.getTime() === checkDate.getTime();
+      });
 
         const oldAttendanceStatusRaw = existingAttendance?.status;
         const oldAttendanceStatus = oldAttendanceStatusRaw ? normalizeStatus(oldAttendanceStatusRaw as AttendanceStatusOrNull) : null;
@@ -2271,6 +2384,7 @@ function ClassActionModal({
         return {
           studentId,
           pointsToAdd,
+          goldToAdd,
           attendanceStatus: finalAttendanceStatus,
           attendancePointsDiff,
           oldAttendanceStatus,
@@ -2310,6 +2424,35 @@ function ClassActionModal({
         });
 
       await Promise.all(pointPromises.filter(p => p !== null));
+
+      // Add gold for all students
+      const goldPromises = updates
+        .filter((u) => u.goldToAdd !== 0) // Include if there are any gold changes
+        .map(async (u) => {
+          try {
+            console.log(`Adding ${u.goldToAdd} gold to student ${u.studentId}`);
+            const response = await fetch(`/api/students/${u.studentId}/gold`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ operation: "add", amount: u.goldToAdd }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+              console.error(`Error response for student ${u.studentId}:`, errorData);
+              throw new Error(errorData?.error || `Lỗi cộng vàng cho học sinh ${u.studentId}`);
+            }
+
+            const result = await response.json();
+            console.log(`Successfully added gold to student ${u.studentId}:`, result);
+            return result;
+          } catch (error) {
+            console.error(`Error adding gold to student ${u.studentId}:`, error);
+            throw error;
+          }
+        });
+
+      await Promise.all(goldPromises.filter(p => p !== null));
 
       // Save attendance records (only if status changed or is new)
       // CRITICAL: Only save if there's an ACTUAL change from what's in DB
@@ -2381,7 +2524,7 @@ function ClassActionModal({
       const finalRefreshDateStr = formatDateLocal(checkDate);
       const finalRefreshResponse = await fetch(
         `/api/attendance?classId=${classData._id}&sessionDate=${finalRefreshDateStr}&_t=${Date.now()}`
-      );
+          );
       if (finalRefreshResponse.ok) {
         setAttendanceRecords(await finalRefreshResponse.json());
       }
@@ -2446,8 +2589,10 @@ function ClassActionModal({
 
       // Clear temporary data and localStorage
       setTempScores(new Map());
+      setTempGold(new Map());
       setTempAttendance(new Map());
       setTempInputValues(new Map());
+      setTempGoldInputValues(new Map());
       const storageKey = `class_session_${classData._id?.toString()}_${date.toISOString().split('T')[0]}`;
       localStorage.removeItem(storageKey);
 
@@ -2498,8 +2643,8 @@ function ClassActionModal({
         <div
           className={`flex items-center justify-between border-b ${
             type === "attendance" && role === "teacher"
-              ? "pt-1 pb-1 flex-shrink-0"
-              : "mb-1 pb-1"
+              ? "pt-2 pb-2 flex-shrink-0"
+              : "mb-2 pb-2"
           }`}
           style={{ borderColor: colors.light }}
         >
@@ -2515,7 +2660,7 @@ function ClassActionModal({
                   >
                     ←
           </button>
-                  <h3 className="text-xl font-bold" style={{ color: colors.darkBrown }}>
+                  <h3 className="text-2xl font-bold" style={{ color: colors.darkBrown }}>
                     Điểm danh ngày{" "}
                     {date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
                   </h3>
@@ -2535,11 +2680,11 @@ function ClassActionModal({
               style={{
                         backgroundColor: "transparent",
                         color: colors.darkBrown,
-                      }}
-                    >
+              }}
+            >
                       <svg
-                        width="16"
-                        height="16"
+                        width="20"
+                        height="20"
                         viewBox="0 0 16 16"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
@@ -2552,13 +2697,13 @@ function ClassActionModal({
                           strokeLinecap="round"
                         />
                       </svg>
-                      Sắp xếp
+                      <span className="text-lg">Sắp xếp</span>
                     </button>
                     {showSortDropdown && (
-                      <div
+                  <div
                         className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg border-2 z-50 min-w-[180px]"
                         style={{ borderColor: colors.light }}
-                      >
+                  >
                         <button
                           onClick={() => {
                             setSortOrder("asc");
@@ -2585,7 +2730,7 @@ function ClassActionModal({
                   <button
                     onClick={handleFinalizeSession}
                     disabled={isFinalizing}
-                    className="px-4 py-2 rounded-xl font-semibold text-sm transition-all whitespace-nowrap hover:shadow-md hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
+                    className=" cursor-pointer px-3 py-1 rounded-xl font-semibold text-lg transition-all whitespace-nowrap hover:shadow-md hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
                     style={{
                       backgroundColor: "white",
                       color: colors.darkBrown,
@@ -2598,8 +2743,8 @@ function ClassActionModal({
                   </div>
               {/* Vùng phải header - canh với cột ranking, padding match với body */}
               <div className="flex-shrink-0 flex items-center justify-center p-4" style={{ width: `${rightSideWidth}px` }}>
-                <div className="text-lg font-semibold tracking-wide" style={{ color: colors.darkBrown }}>
-                  Top xếp hạng lớp
+                <div className="text-2xl font-semibold tracking-wide" style={{ color: colors.darkBrown }}>
+                  TOP XẾP HẠNG LỚP
                 </div>
                   </div>
                   </div>
@@ -2629,7 +2774,7 @@ function ClassActionModal({
                   <div className="space-y-3 animate-pulse mt-4">
                       {[1, 2, 3, 4, 5].map((i) => (
                       <div key={i} className="h-24 rounded-2xl border" style={{ backgroundColor: colors.light }} />
-                    ))}
+                      ))}
                   </div>
                 </div>
               ) : (
@@ -2674,8 +2819,8 @@ function ClassActionModal({
                               e.currentTarget.style.borderColor = tint.border;
                               e.currentTarget.style.transform = 'translateY(0)';
                             }
-                          }}
-                        >
+                                  }}
+                                >
                           {/* Avatar + name + small stats */}
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="flex-shrink-0 relative">
@@ -2687,7 +2832,7 @@ function ClassActionModal({
                                   style={{ borderColor: "rgba(0,0,0,0.10)" }}
                                 />
                               ) : (
-                                <div
+                                    <div
                                   className="w-16 h-16 rounded-full border-2 flex items-center justify-center font-bold transition-all cursor-pointer hover:scale-110 hover:shadow-md"
                                       style={{
                                     backgroundColor: "rgba(255,255,255,0.65)",
@@ -2742,13 +2887,22 @@ function ClassActionModal({
                             </div>
                           </div>
 
-                          {/* Middle score - điểm tạm thời */}
+                          {/* Middle score - điểm tạm thời và vàng tạm thời */}
                           <div className="flex-shrink-0 text-center px-3">
-                            <div className="text-xl font-black" style={{ color: colors.darkBrown }}>
+                            <div className="text-xl font-black flex items-center justify-center gap-1" style={{ color: colors.darkBrown }}>
                               {(() => {
                                 const tempScore = tempScores.get(studentId);
                                 return tempScore !== undefined ? tempScore : currentSeasonScore;
                               })()}
+                              <span className="text-lg">⭐</span>
+                            </div>
+                            <div className="text-sm font-medium flex items-center justify-center gap-1 opacity-60" style={{ color: colors.darkBrown }}>
+                              {(() => {
+                                const tempGoldValue = tempGold.get(studentId);
+                                const baseGold = profile?.gold || 0;
+                                return tempGoldValue !== undefined ? tempGoldValue : baseGold;
+                              })()}
+                              <span className="text-xs">🪙</span>
                             </div>
                           </div>
 
@@ -2756,14 +2910,67 @@ function ClassActionModal({
                                   {type === "attendance" && (
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <input
+                                ref={(el) => {
+                                  goldInputRefs.current.set(studentId, el);
+                                }}
                                 type="text"
                                 className="w-10 h-10 rounded-full border-2 text-center text-sm font-semibold transition-all cursor-text hover:border-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1"
                                         style={{
                                   borderColor: colors.brown, 
                                   color: colors.darkBrown, 
                                   backgroundColor: "white",
+                                        }}
+                                aria-label="Input tròn (vàng)"
+                                value={tempGoldInputValues.get(studentId) || ""}
+                                onChange={(e) => {
+                                  // Chỉ cho phép nhập số, dấu trừ ở đầu, và dấu chấm (cho số thập phân)
+                                  const value = e.target.value;
+                                  const validPattern = /^-?\d*(\.\d*)?$/;
+                                  
+                                  // Cho phép chuỗi rỗng hoặc chuỗi chỉ có dấu trừ (đang nhập)
+                                  if (value === "" || value === "-" || validPattern.test(value)) {
+                                    setTempGoldInputValues((prev) => {
+                                      const next = new Map(prev);
+                                      next.set(studentId, value);
+                                      return next;
+                                    });
+                                  }
                                 }}
-                                aria-label="Input tròn"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const value = e.currentTarget.value.trim();
+                                    const gold = parseFloat(value);
+                                    // Cho phép số âm, số dương, và 0
+                                    if (!isNaN(gold) && value !== "" && value !== "-") {
+                                      handleAddTempGold(studentId, gold);
+                                      setTempGoldInputValues((prev) => {
+                                        const next = new Map(prev);
+                                        next.set(studentId, "");
+                                        return next;
+                                      });
+                                    }
+                                    
+                                    // Tự động chuyển focus xuống học sinh tiếp theo
+                                    const currentIndex = studentsForDate.findIndex(
+                                      (s) => s._id?.toString() === studentId
+                                    );
+                                    if (currentIndex >= 0 && currentIndex < studentsForDate.length - 1) {
+                                      const nextStudent = studentsForDate[currentIndex + 1];
+                                      const nextStudentId = nextStudent._id?.toString() || "";
+                                      const nextInput = goldInputRefs.current.get(nextStudentId);
+                                      if (nextInput) {
+                                        // Delay nhỏ để đảm bảo state đã được cập nhật
+                                        setTimeout(() => {
+                                          nextInput.focus();
+                                          nextInput.select(); // Chọn toàn bộ text để dễ nhập lại
+                                        }, 0);
+                                      }
+                                    } else {
+                                      // Nếu là học sinh cuối cùng, blur
+                                      e.currentTarget.blur();
+                                    }
+                                  }
+                                }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.borderColor = colors.mediumGreen;
                                 }}
@@ -2772,13 +2979,16 @@ function ClassActionModal({
                                 }}
                               />
                               <input
+                                ref={(el) => {
+                                  inputRefs.current.set(studentId, el);
+                                }}
                                 type="text"
                                 className="w-12 h-10 rounded border-2 text-center text-sm font-semibold transition-all cursor-text hover:border-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1"
                                         style={{
                                   borderColor: colors.brown, 
                                   color: colors.darkBrown, 
                                   backgroundColor: "white",
-                                }}
+                                        }}
                                 aria-label="Input chữ nhật"
                                 value={tempInputValues.get(studentId) || ""}
                                 onChange={(e) => {
@@ -2812,7 +3022,26 @@ function ClassActionModal({
                                         return next;
                                       });
                                     }
-                                    e.currentTarget.blur();
+                                    
+                                    // Tự động chuyển focus xuống học sinh tiếp theo
+                                    const currentIndex = studentsForDate.findIndex(
+                                      (s) => s._id?.toString() === studentId
+                                    );
+                                    if (currentIndex >= 0 && currentIndex < studentsForDate.length - 1) {
+                                      const nextStudent = studentsForDate[currentIndex + 1];
+                                      const nextStudentId = nextStudent._id?.toString() || "";
+                                      const nextInput = inputRefs.current.get(nextStudentId);
+                                      if (nextInput) {
+                                        // Delay nhỏ để đảm bảo state đã được cập nhật
+                                        setTimeout(() => {
+                                          nextInput.focus();
+                                          nextInput.select(); // Chọn toàn bộ text để dễ nhập lại
+                                        }, 0);
+                                      }
+                                    } else {
+                                      // Nếu là học sinh cuối cùng, blur
+                                      e.currentTarget.blur();
+                                    }
                                   }
                                 }}
                                 onMouseEnter={(e) => {
@@ -2872,7 +3101,7 @@ function ClassActionModal({
             </div>
 
             {/* Resizer handle */}
-            <div
+                        <div
               className="flex-shrink-0 cursor-col-resize relative group"
               style={{ 
                 width: '1px',
@@ -2905,7 +3134,7 @@ function ClassActionModal({
               ) : (
                 <>
                   {/* Avatar Ranking */}
-                  <div className="mb-15">
+                  <div className="mb-15 mt-10">
                     {(() => {
                       const top5 = classRanking.slice(0, 5);
                       
@@ -2976,7 +3205,7 @@ function ClassActionModal({
                             )}
                             
                             {/* Badge số */}
-                            <div
+                                  <div
                               className="absolute left-1/2 -translate-x-1/2 rounded-full flex items-center justify-center font-black text-white"
                                     style={{
                                 bottom: -(size * 0.35) / 2,
@@ -2986,8 +3215,8 @@ function ClassActionModal({
                                 border: "3px solid white",
                                 boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
                                 fontSize: size * 0.25,
-                              }}
-                            >
+                                    }}
+                                  >
                               {rankNumber}
                                   </div>
                           </motion.div>
@@ -3044,7 +3273,7 @@ function ClassActionModal({
                                       style={{
                             backgroundColor: palette[0].bg, 
                             borderColor: palette[0].border,
-                          }}
+                                      }}
                           onMouseEnter={() => {
                             if (!id) return;
                             setHighlightStudentId(id);
@@ -3106,7 +3335,7 @@ function ClassActionModal({
                               scrollToStudent(id);
                             }}
                             onMouseLeave={() => setHighlightStudentId(null)}
-                          >
+                        >
                             <div className="ml-3 w-8 text-[42px] leading-none font-black transition-all" style={{ color: colors.darkBrown }}>
                               {rank}
                           </div>
@@ -3226,7 +3455,7 @@ function ClassActionModal({
         )}
 
         <div className="flex justify-between items-center gap-3 py-3 px-6 border-t flex-shrink-0" style={{ borderColor: colors.light }}>
-          <div className="text-base font-semibold flex items-center" style={{ color: colors.darkBrown }}>
+          <div className="text-lg font-semibold flex items-center" style={{ color: colors.darkBrown }}>
             Lớp: {classData.name}
           </div>
           <div className="flex gap-3">
