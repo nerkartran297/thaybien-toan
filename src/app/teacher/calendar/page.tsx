@@ -35,28 +35,25 @@ export default function TeacherCalendarPage() {
 
   const fetchAbsenceAndMakeupRequests = async () => {
     try {
-      // No need to fetch absence requests anymore
-      // Fetch attendance records with status "excused" instead
+      // Fetch ALL attendance records (not just excused) to calculate absence count correctly
       const attendanceResponse = await fetch("/api/attendance");
       if (attendanceResponse.ok) {
         const attendance = await attendanceResponse.json();
-        // Filter only excused absences and format for WeekCalendar
-        const excusedAttendances = attendance
-          .filter((att: { status?: string }) => att.status === "excused")
-          .map(
-            (att: {
-              sessionDate: Date | string;
-              studentId?: { toString: () => string } | string;
-              classId?: { toString: () => string } | string;
-              status?: string;
-            }) => ({
-              sessionDate: new Date(att.sessionDate),
-              studentId: att.studentId?.toString(),
-              classId: att.classId?.toString(),
-              status: att.status,
-            })
-          );
-        setAttendanceRecords(excusedAttendances);
+        // Format all attendance records for WeekCalendar (including present, excused, absent)
+        const allAttendances = attendance.map(
+          (att: {
+            sessionDate: Date | string;
+            studentId?: { toString: () => string } | string;
+            classId?: { toString: () => string } | string;
+            status?: string;
+          }) => ({
+            sessionDate: new Date(att.sessionDate),
+            studentId: att.studentId?.toString(),
+            classId: att.classId?.toString(),
+            status: att.status,
+          })
+        );
+        setAttendanceRecords(allAttendances);
       }
 
       // Fetch all makeup requests
@@ -198,6 +195,7 @@ export default function TeacherCalendarPage() {
             setShowCreateModal(true);
           }}
           onEditClass={handleEditClass}
+          onAttendanceUpdated={fetchAbsenceAndMakeupRequests}
           attendanceRecords={attendanceRecords.map(
             (a: {
               classId?: string;

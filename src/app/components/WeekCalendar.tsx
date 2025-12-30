@@ -28,6 +28,7 @@ interface WeekCalendarProps {
   onEditClass?: (classId: string) => void;
   onRequestAbsence?: (classId: string, date: Date, reason: string) => void;
   onRequestMakeup?: (classId: string, date: Date, reason: string) => void;
+  onAttendanceUpdated?: () => void; // Callback to refresh attendance records after finalizing
   makeupRequests?: Array<{
     newClassId?: string;
     newSessionDate: Date;
@@ -51,6 +52,7 @@ export default function WeekCalendar({
   onEditClass,
   onRequestAbsence,
   onRequestMakeup,
+  onAttendanceUpdated,
   makeupRequests = [],
   attendanceRecords = [],
 }: WeekCalendarProps) {
@@ -666,8 +668,13 @@ export default function WeekCalendar({
                                     cls._id?.toString()
                                   )
                                     return false;
+                                  // Normalize status for comparison (case-insensitive)
+                                  const normalizedStatus = att.status?.toLowerCase();
+                                  
                                   // P (excused) và K (absent) đều tính vào vắng
-                                  if (att.status !== "excused" && att.status !== "absent") return false;
+                                  if (normalizedStatus !== "excused" && normalizedStatus !== "absent") {
+                                    return false;
+                                  }
                                   const attDate = new Date(att.sessionDate);
                                   attDate.setHours(0, 0, 0, 0);
                                   const attDateStr = formatDateLocal(attDate);
@@ -1209,8 +1216,13 @@ export default function WeekCalendar({
                                     cls._id?.toString()
                                   )
                                     return false;
+                                  // Normalize status for comparison (case-insensitive)
+                                  const normalizedStatus = att.status?.toLowerCase();
+                                  
                                   // P (excused) và K (absent) đều tính vào vắng
-                                  if (att.status !== "excused" && att.status !== "absent") return false;
+                                  if (normalizedStatus !== "excused" && normalizedStatus !== "absent") {
+                                    return false;
+                                  }
                                   const attDate = new Date(att.sessionDate);
                                   attDate.setHours(0, 0, 0, 0);
                                   const attDateStr = formatDateLocal(attDate);
@@ -1548,6 +1560,7 @@ export default function WeekCalendar({
           onEditClass={onEditClass}
           onRequestAbsence={onRequestAbsence}
           onRequestMakeup={onRequestMakeup}
+          onAttendanceUpdated={onAttendanceUpdated}
           attendanceRecords={attendanceRecords}
           makeupRequests={makeupRequests}
           role={role}
@@ -1631,6 +1644,7 @@ interface ClassActionModalProps {
   onEditClass?: (classId: string) => void;
   onRequestAbsence?: (classId: string, date: Date, reason: string) => void;
   onRequestMakeup?: (classId: string, date: Date, reason: string) => void;
+  onAttendanceUpdated?: () => void; // Callback to refresh attendance records after finalizing
   attendanceRecords?: Array<{
     sessionDate: Date;
     studentId?: string;
@@ -1654,6 +1668,7 @@ function ClassActionModal({
   // onEditClass,
   onRequestAbsence,
   onRequestMakeup,
+  onAttendanceUpdated,
   attendanceRecords: propAttendanceRecords = [],
   makeupRequests = [],
   role,
@@ -2597,6 +2612,11 @@ function ClassActionModal({
       localStorage.removeItem(storageKey);
 
       showSuccess("Đã tổng kết buổi học thành công");
+      
+      // Notify parent component to refresh attendance records
+      if (onAttendanceUpdated) {
+        onAttendanceUpdated();
+      }
     } catch (error) {
       console.error("Error finalizing session:", error);
       const errorMessage = error instanceof Error ? error.message : "Lỗi tổng kết buổi học";
