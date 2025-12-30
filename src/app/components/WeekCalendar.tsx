@@ -27,13 +27,7 @@ interface WeekCalendarProps {
   onCreateClass?: () => void;
   onEditClass?: (classId: string) => void;
   onRequestAbsence?: (classId: string, date: Date, reason: string) => void;
-  onRequestMakeup?: (classId: string, date: Date, reason: string) => void;
   onAttendanceUpdated?: () => void; // Callback to refresh attendance records after finalizing
-  makeupRequests?: Array<{
-    newClassId?: string;
-    newSessionDate: Date;
-    status?: string;
-  }>;
   attendanceRecords?: Array<{
     sessionDate: Date;
     studentId?: string;
@@ -51,9 +45,7 @@ export default function WeekCalendar({
   onCreateClass,
   onEditClass,
   onRequestAbsence,
-  onRequestMakeup,
   onAttendanceUpdated,
-  makeupRequests = [],
   attendanceRecords = [],
 }: WeekCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -64,7 +56,7 @@ export default function WeekCalendar({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<
-    "cancel" | "absence" | "makeup" | "create" | "attendance"
+    "cancel" | "absence" | "create" | "attendance"
   >("cancel");
   const [hoveredClassBlock, setHoveredClassBlock] = useState<{
     classId: string;
@@ -375,7 +367,7 @@ export default function WeekCalendar({
   const handleClassClick = (
     cls: Class,
     date: Date,
-    type: "cancel" | "absence" | "makeup" | "attendance"
+    type: "cancel" | "absence" | "attendance"
   ) => {
     setSelectedClass(cls);
     setSelectedDate(date);
@@ -407,13 +399,21 @@ export default function WeekCalendar({
               />
             </svg>
           </button>
-          <button
-            onClick={goToToday}
-            className="rounded-lg px-4 py-2 hover:bg-[#DDE5B6] transition-colors font-medium"
+          <div
+            className="text-lg font-semibold"
             style={{ color: colors.darkBrown }}
           >
-            Hôm nay
-          </button>
+            {weekDates[0].toLocaleDateString("vi-VN", {
+              day: "numeric",
+              month: "long",
+            })}{" "}
+            -{" "}
+            {weekDates[6].toLocaleDateString("vi-VN", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </div>
           <button
             onClick={goToNextWeek}
             className="rounded-lg p-2 hover:bg-[#DDE5B6] transition-colors"
@@ -433,22 +433,6 @@ export default function WeekCalendar({
               />
             </svg>
           </button>
-        </div>
-
-        <div
-          className="text-lg font-semibold"
-          style={{ color: colors.darkBrown }}
-        >
-          {weekDates[0].toLocaleDateString("vi-VN", {
-            day: "numeric",
-            month: "long",
-          })}{" "}
-          -{" "}
-          {weekDates[6].toLocaleDateString("vi-VN", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
         </div>
 
         {role === "teacher" && onCreateClass && (
@@ -636,24 +620,6 @@ export default function WeekCalendar({
                           date
                         );
 
-                      const remainingMakeupSessions =
-                        role === "student" && enrollment && studentId
-                          ? (() => {
-                              const excusedAbsences = attendanceRecords.filter(
-                                (att) =>
-                                  att.studentId?.toString() === studentId &&
-                                  att.status === "excused"
-                              ).length;
-                              const approvedMakeups = makeupRequests.filter(
-                                (m) => !m.status || m.status === "approved"
-                              ).length;
-                              return Math.max(
-                                0,
-                                excusedAbsences - approvedMakeups
-                              );
-                            })()
-                          : 0;
-
                       const absenceCountForDate =
                         role === "teacher"
                           ? (() => {
@@ -692,35 +658,6 @@ export default function WeekCalendar({
                             })()
                           : 0;
 
-                      const makeupCountForDate =
-                        role === "teacher"
-                          ? makeupRequests.filter((req) => {
-                              if (req.newClassId !== cls._id?.toString())
-                                return false;
-                              const makeupDate = new Date(req.newSessionDate);
-                              makeupDate.setHours(0, 0, 0, 0);
-                              const checkDate = new Date(date);
-                              checkDate.setHours(0, 0, 0, 0);
-                              return (
-                                makeupDate.getTime() === checkDate.getTime()
-                              );
-                            }).length
-                          : 0;
-
-                      // All classes repeat weekly, so check if this date matches makeup request date
-                      const isMakeupClass =
-                        role === "student" &&
-                        studentId &&
-                        makeupRequests.some((req) => {
-                          if (!req.newClassId) return false;
-                          if (req.newClassId !== cls._id?.toString())
-                            return false;
-                          const makeupDate = new Date(req.newSessionDate);
-                          makeupDate.setHours(0, 0, 0, 0);
-                          const checkDate = new Date(date);
-                          checkDate.setHours(0, 0, 0, 0);
-                          return makeupDate.getTime() === checkDate.getTime();
-                        });
 
                       const classDate = new Date(date);
                       classDate.setHours(0, 0, 0, 0);
@@ -742,17 +679,9 @@ export default function WeekCalendar({
                       );
 
                       let studentCountForDate = validEnrolledStudents.length;
-                      if (role === "teacher") {
-                        studentCountForDate =
-                          validEnrolledStudents.length -
-                          absenceCountForDate +
-                          makeupCountForDate;
-                      } else if (role === "student") {
+                      if (role === "student") {
                         if (isEnrolled && hasAbsenceRequest) {
                           studentCountForDate -= 1;
-                        }
-                        if (isMakeupClass) {
-                          studentCountForDate += 1;
                         }
                       }
 
@@ -793,8 +722,6 @@ export default function WeekCalendar({
                                   ? "var(--class-cancelled)"
                                   : hasAbsenceRequest
                                   ? "var(--class-absence)"
-                                  : isMakeupClass
-                                  ? "var(--class-makeup)"
                                   : isEnrolled
                                   ? "var(--class-regular)"
                                   : isFull
@@ -807,8 +734,6 @@ export default function WeekCalendar({
                                   ? "var(--text-cancelled)"
                                   : hasAbsenceRequest
                                   ? "var(--text-absence)"
-                                  : isMakeupClass
-                                  ? "var(--text-makeup)"
                                   : isEnrolled
                                   ? "var(--text-regular)"
                                   : isFull
@@ -914,30 +839,6 @@ export default function WeekCalendar({
                                         Xin vắng
                                       </button>
                                     )}
-                                  {!isEnrolled &&
-                                    !isPastClass &&
-                                    !isCancelledOnDate && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          e.preventDefault();
-                                          if (onRequestMakeup) {
-                                            onRequestMakeup(
-                                              cls._id!.toString(),
-                                              date,
-                                              remainingMakeupSessions.toString()
-                                            );
-                                          }
-                                        }}
-                                        className="text-xs px-3 py-1.5 rounded hover:bg-blue-500 hover:text-white transition-colors whitespace-nowrap"
-                                        style={{
-                                          backgroundColor: colors.mediumGreen,
-                                          color: "white",
-                                        }}
-                                      >
-                                        Học bù
-                                      </button>
-                                    )}
                                 </div>
                               )}
 
@@ -961,11 +862,10 @@ export default function WeekCalendar({
                                     color: "inherit",
                                   }}
                                 >
-                                  {studentCountForDate} học sinh
+                                  {validEnrolledStudents.length} học sinh
                                 </div>
                                 {role === "teacher" &&
-                                  (absenceCountForDate > 0 ||
-                                    makeupCountForDate > 0) && (
+                                  absenceCountForDate > 0 && (
                                     <div
                                       className="text-[9px] opacity-60 break-words"
                                       style={{
@@ -974,14 +874,9 @@ export default function WeekCalendar({
                                         color: "inherit",
                                       }}
                                     >
-                                      {absenceCountForDate > 0 && (
-                                        <span>
-                                          Vắng: {absenceCountForDate}{" "}
-                                        </span>
-                                      )}
-                                      {makeupCountForDate > 0 && (
-                                        <span>Bù: {makeupCountForDate}</span>
-                                      )}
+                                      <span>
+                                        Vắng: {absenceCountForDate}{" "}
+                                      </span>
                                     </div>
                                   )}
                               </div>
@@ -1184,24 +1079,6 @@ export default function WeekCalendar({
                           date
                         );
 
-                      const remainingMakeupSessions =
-                        role === "student" && enrollment && studentId
-                          ? (() => {
-                              const excusedAbsences = attendanceRecords.filter(
-                                (att) =>
-                                  att.studentId?.toString() === studentId &&
-                                  att.status === "excused"
-                              ).length;
-                              const approvedMakeups = makeupRequests.filter(
-                                (m) => !m.status || m.status === "approved"
-                              ).length;
-                              return Math.max(
-                                0,
-                                excusedAbsences - approvedMakeups
-                              );
-                            })()
-                          : 0;
-
                       const absenceCountForDate =
                         role === "teacher"
                           ? (() => {
@@ -1240,34 +1117,6 @@ export default function WeekCalendar({
                             })()
                           : 0;
 
-                      const makeupCountForDate =
-                        role === "teacher"
-                          ? makeupRequests.filter((req) => {
-                              if (req.newClassId !== cls._id?.toString())
-                                return false;
-                              const makeupDate = new Date(req.newSessionDate);
-                              makeupDate.setHours(0, 0, 0, 0);
-                              const checkDate = new Date(date);
-                              checkDate.setHours(0, 0, 0, 0);
-                              return (
-                                makeupDate.getTime() === checkDate.getTime()
-                              );
-                            }).length
-                          : 0;
-
-                      const isMakeupClass =
-                        role === "student" &&
-                        studentId &&
-                        makeupRequests.some((req) => {
-                          if (!req.newClassId) return false;
-                          if (req.newClassId !== cls._id?.toString())
-                            return false;
-                          const makeupDate = new Date(req.newSessionDate);
-                          makeupDate.setHours(0, 0, 0, 0);
-                          const checkDate = new Date(date);
-                          checkDate.setHours(0, 0, 0, 0);
-                          return makeupDate.getTime() === checkDate.getTime();
-                        });
 
                       const classDate = new Date(date);
                       classDate.setHours(0, 0, 0, 0);
@@ -1289,17 +1138,9 @@ export default function WeekCalendar({
                       );
 
                       let studentCountForDate = validEnrolledStudents.length;
-                      if (role === "teacher") {
-                        studentCountForDate =
-                          validEnrolledStudents.length -
-                          absenceCountForDate +
-                          makeupCountForDate;
-                      } else if (role === "student") {
+                      if (role === "student") {
                         if (isEnrolled && hasAbsenceRequest) {
                           studentCountForDate -= 1;
-                        }
-                        if (isMakeupClass) {
-                          studentCountForDate += 1;
                         }
                       }
 
@@ -1340,8 +1181,6 @@ export default function WeekCalendar({
                                   ? "var(--class-cancelled)"
                                   : hasAbsenceRequest
                                   ? "var(--class-absence)"
-                                  : isMakeupClass
-                                  ? "var(--class-makeup)"
                                   : isEnrolled
                                   ? "var(--class-regular)"
                                   : isFull
@@ -1354,8 +1193,6 @@ export default function WeekCalendar({
                                   ? "var(--text-cancelled)"
                                   : hasAbsenceRequest
                                   ? "var(--text-absence)"
-                                  : isMakeupClass
-                                  ? "var(--text-makeup)"
                                   : isEnrolled
                                   ? "var(--text-regular)"
                                   : isFull
@@ -1461,30 +1298,6 @@ export default function WeekCalendar({
                                         Xin vắng
                                       </button>
                                     )}
-                                  {!isEnrolled &&
-                                    !isPastClass &&
-                                    !isCancelledOnDate && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          e.preventDefault();
-                                          if (onRequestMakeup) {
-                                            onRequestMakeup(
-                                              cls._id!.toString(),
-                                              date,
-                                              remainingMakeupSessions.toString()
-                                            );
-                                          }
-                                        }}
-                                        className="text-xs px-2 py-1 rounded hover:bg-blue-500 hover:text-white transition-colors whitespace-nowrap"
-                                        style={{
-                                          backgroundColor: colors.mediumGreen,
-                                          color: "white",
-                                        }}
-                                      >
-                                        Học bù
-                                      </button>
-                                    )}
                                 </div>
                               )}
 
@@ -1508,11 +1321,10 @@ export default function WeekCalendar({
                                     color: "inherit",
                                   }}
                                 >
-                                  {studentCountForDate} học sinh
+                                  {validEnrolledStudents.length} học sinh
                                 </div>
                                 {role === "teacher" &&
-                                  (absenceCountForDate > 0 ||
-                                    makeupCountForDate > 0) && (
+                                  absenceCountForDate > 0 && (
                                     <div
                                       className="text-[9px] opacity-60 break-words"
                                       style={{
@@ -1521,14 +1333,9 @@ export default function WeekCalendar({
                                         color: "inherit",
                                       }}
                                     >
-                                      {absenceCountForDate > 0 && (
-                                        <span>
-                                          Vắng: {absenceCountForDate}{" "}
-                                        </span>
-                                      )}
-                                      {makeupCountForDate > 0 && (
-                                        <span>Bù: {makeupCountForDate}</span>
-                                      )}
+                                      <span>
+                                        Vắng: {absenceCountForDate}{" "}
+                                      </span>
                                     </div>
                                   )}
                               </div>
@@ -1559,10 +1366,8 @@ export default function WeekCalendar({
           onCancelClass={onCancelClass}
           onEditClass={onEditClass}
           onRequestAbsence={onRequestAbsence}
-          onRequestMakeup={onRequestMakeup}
           onAttendanceUpdated={onAttendanceUpdated}
           attendanceRecords={attendanceRecords}
-          makeupRequests={makeupRequests}
           role={role}
         />
       )}
@@ -1636,24 +1441,18 @@ function StatusPill({
 
 // Modal component for class actions
 interface ClassActionModalProps {
-  type: "cancel" | "absence" | "makeup" | "create" | "attendance";
+  type: "cancel" | "absence" | "create" | "attendance";
   classData: Class;
   date: Date;
   onClose: () => void;
   onCancelClass?: (classId: string, date: Date) => void;
   onEditClass?: (classId: string) => void;
   onRequestAbsence?: (classId: string, date: Date, reason: string) => void;
-  onRequestMakeup?: (classId: string, date: Date, reason: string) => void;
   onAttendanceUpdated?: () => void; // Callback to refresh attendance records after finalizing
   attendanceRecords?: Array<{
     sessionDate: Date;
     studentId?: string;
     classId?: string;
-    status?: string;
-  }>;
-  makeupRequests?: Array<{
-    newClassId?: string;
-    newSessionDate: Date;
     status?: string;
   }>;
   role?: "teacher" | "student";
@@ -1667,16 +1466,13 @@ function ClassActionModal({
   onCancelClass,
   // onEditClass,
   onRequestAbsence,
-  onRequestMakeup,
   onAttendanceUpdated,
   attendanceRecords: propAttendanceRecords = [],
-  makeupRequests = [],
   role,
 }: ClassActionModalProps) {
   const [reason, setReason] = useState("");
   const [students, setStudents] = useState<User[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
-  const [makeupStudents, setMakeupStudents] = useState<User[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
   const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [savingAttendance, setSavingAttendance] = useState<string | null>(null);
@@ -1926,54 +1722,10 @@ function ClassActionModal({
     }
   }, [type, role, classData._id, classData.enrolledStudents, date]);
 
-  // Fetch makeup students
-  useEffect(() => {
-    if (type === "attendance" && role === "teacher") {
-      const fetchMakeupStudents = async () => {
-        try {
-          const checkDate = new Date(date);
-          checkDate.setHours(0, 0, 0, 0);
-
-          const allMakeupsResponse = await fetch("/api/makeups");
-          if (allMakeupsResponse.ok) {
-            const allMakeups = await allMakeupsResponse.json();
-            const makeupForThisClass = allMakeups.filter(
-              (m: { newClassId?: string; newSessionDate: Date; studentId?: string }) => {
-                if (m.newClassId?.toString() !== classData._id?.toString()) return false;
-                const makeupDate = new Date(m.newSessionDate);
-                makeupDate.setHours(0, 0, 0, 0);
-                return makeupDate.getTime() === checkDate.getTime();
-              }
-            );
-
-            if (makeupForThisClass.length > 0) {
-              const studentPromises = makeupForThisClass
-                .map((req: { studentId?: string }) => {
-                  const sid = req.studentId?.toString();
-                  if (!sid) return null;
-                  return fetch(`/api/students/${sid}`).then((res) => res.json()).catch(() => null);
-                })
-                .filter((p: Promise<User | null> | null) => p !== null) as Promise<User | null>[];
-
-              const makeupStudentData = await Promise.all(studentPromises);
-              setMakeupStudents(makeupStudentData.filter(Boolean) as User[]);
-            } else {
-              setMakeupStudents([]);
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching makeup students:", error);
-          setMakeupStudents([]);
-        }
-      };
-
-      fetchMakeupStudents();
-    }
-  }, [type, role, classData._id, date, makeupRequests]);
 
   const studentsForDate = useMemo(() => {
     if (role !== "teacher" || type !== "attendance") return [];
-    const merged = [...students, ...makeupStudents];
+    const merged = [...students];
     const seen = new Set<string>();
     const out: Array<User & { hasAbsence?: boolean }> = [];
     const checkDate = new Date(date);
@@ -2008,7 +1760,7 @@ function ClassActionModal({
     }
 
     return out;
-  }, [role, type, students, makeupStudents, date, propAttendanceRecords, classData._id, sortOrder, studentProfiles]);
+  }, [role, type, students, date, propAttendanceRecords, classData._id, sortOrder, studentProfiles]);
 
   const getAttendanceStatus = useCallback(
     (studentId: string): AttendanceStatusOrNull => {
@@ -2120,9 +1872,6 @@ function ClassActionModal({
     } else if (type === "absence" && onRequestAbsence) {
       onRequestAbsence(classData._id!.toString(), date, reason);
       requestClose();
-    } else if (type === "makeup" && onRequestMakeup) {
-      onRequestMakeup(classData._id!.toString(), date, reason);
-      requestClose();
     }
   };
 
@@ -2134,8 +1883,6 @@ function ClassActionModal({
         return "Điểm danh";
       case "absence":
         return "Xin vắng";
-      case "makeup":
-        return "Xin học bù";
       default:
         return "";
     }
@@ -3457,22 +3204,6 @@ function ClassActionModal({
           </div>
         )}
 
-        {type === "makeup" && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2" style={{ color: colors.darkBrown }}>
-              Lý do xin học bù *
-            </label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full p-2 border rounded"
-              style={{ borderColor: colors.brown, color: colors.darkBrown }}
-              rows={3}
-              placeholder="Nhập lý do..."
-              required
-            />
-          </div>
-        )}
 
         <div className="flex justify-between items-center gap-3 py-3 px-6 border-t flex-shrink-0" style={{ borderColor: colors.light }}>
           <div className="text-lg font-semibold flex items-center" style={{ color: colors.darkBrown }}>
@@ -3494,7 +3225,7 @@ function ClassActionModal({
                 style={{ backgroundColor: colors.mediumGreen }}
                 disabled={(type === "cancel" || type === "absence") && !reason.trim()}
               >
-                {type === "cancel" || type === "absence" || type === "makeup" ? "Xác nhận" : "Đóng"}
+                {type === "cancel" || type === "absence" ? "Xác nhận" : "Đóng"}
               </button>
           )}
           </div>

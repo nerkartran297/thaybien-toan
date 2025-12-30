@@ -19,21 +19,14 @@ export default function TeacherCalendarPage() {
       status?: string;
     }>
   >([]);
-  const [makeupRequests, setMakeupRequests] = useState<
-    Array<{
-      newClassId?: string;
-      newSessionDate: Date;
-      status?: string;
-    }>
-  >([]);
 
   // Fetch classes
   useEffect(() => {
     fetchClasses();
-    fetchAbsenceAndMakeupRequests();
+    fetchAttendanceRecords();
   }, []);
 
-  const fetchAbsenceAndMakeupRequests = async () => {
+  const fetchAttendanceRecords = async () => {
     try {
       // Fetch ALL attendance records (not just excused) to calculate absence count correctly
       const attendanceResponse = await fetch("/api/attendance");
@@ -55,15 +48,8 @@ export default function TeacherCalendarPage() {
         );
         setAttendanceRecords(allAttendances);
       }
-
-      // Fetch all makeup requests
-      const makeupsResponse = await fetch("/api/makeups");
-      if (makeupsResponse.ok) {
-        const makeups = await makeupsResponse.json();
-        setMakeupRequests(makeups);
-      }
     } catch (error) {
-      console.error("Error fetching absence and makeup requests:", error);
+      console.error("Error fetching attendance records:", error);
     }
   };
 
@@ -195,7 +181,7 @@ export default function TeacherCalendarPage() {
             setShowCreateModal(true);
           }}
           onEditClass={handleEditClass}
-          onAttendanceUpdated={fetchAbsenceAndMakeupRequests}
+          onAttendanceUpdated={fetchAttendanceRecords}
           attendanceRecords={attendanceRecords.map(
             (a: {
               classId?: string;
@@ -207,15 +193,6 @@ export default function TeacherCalendarPage() {
               sessionDate: new Date(a.sessionDate),
               studentId: a.studentId?.toString(),
               status: a.status || "approved", // Default to 'approved' if not set
-            })
-          )}
-          makeupRequests={makeupRequests.map(
-            (m: {
-              newClassId?: { toString: () => string } | string;
-              newSessionDate: Date | string;
-            }) => ({
-              newClassId: m.newClassId?.toString(),
-              newSessionDate: new Date(m.newSessionDate),
             })
           )}
         />

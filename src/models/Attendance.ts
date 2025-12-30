@@ -6,7 +6,7 @@ export interface Attendance {
   enrollmentId?: ObjectId; // Optional - no longer required
   classId?: ObjectId;
   sessionDate: Date;
-  status: 'present' | 'absent' | 'excused' | 'makeup';
+  status: 'present' | 'absent' | 'excused';
   notes?: string;
   markedBy: ObjectId; // Teacher ID
   markedAt: Date;
@@ -19,7 +19,7 @@ export interface CreateAttendanceData {
   enrollmentId?: ObjectId | string; // Optional - no longer required
   classId?: ObjectId | string;
   sessionDate: Date | string;
-  status: 'present' | 'absent' | 'excused' | 'makeup';
+  status: 'present' | 'absent' | 'excused';
   notes?: string;
   markedBy: ObjectId | string;
 }
