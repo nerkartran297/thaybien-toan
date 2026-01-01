@@ -10,6 +10,7 @@
     "seed:teacher": "node scripts/seed-default-teacher.js",
     "seed:courses": "node scripts/seed-courses.js",
     "seed:sample": "node scripts/seed-sample-data.js",
+    "seed:realistic": "node scripts/seed-realistic-data.js",
     "seed:scores": "node scripts/seed-competition-scores.js",
     "seed:gold": "node scripts/seed-gold.js",
     "migrate:gold": "node scripts/migrate-add-gold.js",
